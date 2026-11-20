@@ -69,6 +69,8 @@ svg{flex:1 1 auto;min-height:0;width:100%;display:block}
 .seg{display:flex;background:#ffffff0d;border-radius:10px;padding:2px}
 .seg button{flex:1;height:30px;border-radius:8px;font-size:13px;font-weight:600;color:var(--muted);padding:0 10px;white-space:nowrap}
 #qLevel button{padding:0 8px}
+#qPro{height:28px;padding:0 10px;font:600 11px var(--mono);letter-spacing:.12em}#qPro.on{background:var(--brass);color:#111}
+#qsoThem{font:13px/1.45 var(--mono);color:var(--ink)}#qsoThem b{color:var(--brass);font-weight:600}#qsoThem small{display:block;font:12px var(--sans);color:var(--muted);margin-top:2px}
 .seg button.on{background:#2b2a25;color:var(--ink)}
 .big-letter{font:600 54px/1 var(--round);color:var(--ink);min-width:52px;text-align:center}
 .code{font:700 30px/1 var(--mono);letter-spacing:.18em;color:var(--lit)}
@@ -235,14 +237,15 @@ input[type=range]{width:100%;accent-color:var(--brass)}
   <!-- QUIZ -->
   <section class="panel" id="p-quiz" hidden>
     <div class="row spread">
-      <div class="seg" id="qType"><button data-v="send" data-t="send"></button><button data-v="recv" data-t="hear"></button><button data-v="word" data-t="words"></button><button data-v="qcode" data-t="qcodes"></button></div>
-      <div class="seg" id="qLevel"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">0-9</button></div>
+      <div class="seg" id="qType"><button data-v="send" data-t="send"></button><button data-v="recv" data-t="hear"></button><button data-v="word" data-t="words"></button><button data-v="qcode" data-t="qcodes"></button><button data-v="qso" data-t="qso"></button></div>
+      <div class="seg" id="qLevel"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">0-9</button></div><button class="chip" id="qPro">PRO</button>
     </div>
     <div class="prompt">
       <div class="big-letter" id="qLetter">E</div><div class="word" id="qWord" hidden></div>
       <div style="display:flex;flex-direction:column;gap:6px;min-width:0">
         <div class="code empty" id="qCode">Key this letter</div>
         <div class="heat" id="qHeat"></div><div class="hint" id="qMean" hidden style="color:var(--brass);font-size:13px"></div>
+        <div id="qsoBox" hidden><div class="hint" id="qsoThem"></div><div class="row" style="gap:6px;margin-top:6px"><button class="chip" id="qsoReplay" data-t="replay"></button><button class="chip" id="qsoNew" data-t="qsoNew"></button></div></div>
       </div>
       <div class="score"><b id="qStreak">0</b><span data-t="streak"></span> · <span id="qAcc">–</span></div>
     </div>
@@ -354,7 +357,7 @@ const Store={
   save(o){const s=JSON.stringify(o);try{window.webkit.messageHandlers.store.postMessage(s)}catch(e){}try{localStorage.setItem('morsetree',s)}catch(e){}}
 };
 const saved=Store.load();
-const S=Object.assign({rmode:'morse',text:'CQ CQ DE TA2SYW K',call:'TA2SYW',lang:'en',tr:false,wpm:12,tone:650,gap:600,haptics:true,mouseKeys:null,twoKeys:false,qType:'send',level:2,hide:false,stats:{}},saved);
+const S=Object.assign({rmode:'morse',text:'CQ CQ DE TA2SYW K',call:'TA2SYW',lang:'en',tr:false,wpm:12,tone:650,gap:600,haptics:true,mouseKeys:null,twoKeys:false,pro:false,qType:'send',level:2,hide:false,stats:{}},saved);
 const persist=()=>Store.save(S);
 const unit=()=>1200/S.wpm;
 function haptic(k){if(!S.haptics)return;try{window.webkit.messageHandlers.haptic.postMessage(k)}catch(e){}}
@@ -411,7 +414,7 @@ function lightStep(code){ // light only up to this prefix, keep earlier ones
   const x=els[code];if(!x)return;x.edge.classList.add('lit');x.node.classList.add('lit');
 }
 function applyHide(){
-  const hide=(tab==='learn'&&S.hide)||(tab==='quiz'&&S.qType==='recv'&&!S.showLetters);
+  const hide=(tab==='learn'&&S.hide)||(tab==='quiz'&&(S.pro||(S.qType==='recv'&&!S.showLetters)));
   $('card').classList.toggle('hide-labels',hide);
   $('lHide').classList.toggle('on',S.hide);
   $('qShowLetters').classList.toggle('on',!!S.showLetters);
@@ -521,7 +524,7 @@ function addSymbol(s){
   K.code+=s;
   if(!active(K.code)){let c=K.code;while(c&&!active(c))c=c.slice(0,-1);lightPath(c)}
   else lightPath(K.code);
-  updateCur();clearTimeout(K.timer);K.timer=setTimeout(commitLetter,(tab==='radio'?3*unit():S.gap)+(K.extra||0)); // radio: standard 3-unit letter gapK.extra=0;
+  updateCur();clearTimeout(K.timer);K.timer=setTimeout(commitLetter,(tab==='radio'||(tab==='quiz'&&S.pro)?3*unit():S.gap)+(K.extra||0)); // radio: standard 3-unit letter gapK.extra=0;
 }
 function updateCur(){
   const ok=validPrefix(K.code);
@@ -588,7 +591,7 @@ $('kSpace').addEventListener('click',()=>{const s=$('kOut').firstChild;if(s.text
 
 // ---------- quiz ----------
 let Q={target:null,busy:false,streak:0,last:null};
-function pool(){if(S.level===5)return NUMS.slice();return TREE.filter(t=>(t[6]?S.tr:true)&&t[0].length<=(S.level>=4?9:S.level)).map(t=>t[1])}
+function pool(){if(S.pro&&tab==='quiz')return TREE.filter(t=>t[6]?S.tr:true).map(t=>t[1]).concat(NUMS);if(S.level===5)return NUMS.slice();return TREE.filter(t=>(t[6]?S.tr:true)&&t[0].length<=(S.level>=4?9:S.level)).map(t=>t[1])}
 function stat(l){return S.stats[l]||(S.stats[l]={n:0,ok:0})}
 function pick(){
   const p=pool().filter(l=>l!==Q.last||pool().length<2);
@@ -598,12 +601,14 @@ function pick(){
 function setupQuiz(){
   document.querySelectorAll('#qType button').forEach(b=>b.classList.toggle('on',b.dataset.v===S.qType));
   document.querySelectorAll('#qLevel button').forEach(b=>b.classList.toggle('on',+b.dataset.v===S.level));
-  const send=S.qType!=='recv';const wordy=S.qType==='word'||S.qType==='qcode';$('qLetter').hidden=wordy;$('qWord').hidden=!wordy;$('qLevel').style.visibility=S.qType==='qcode'?'hidden':'';$('qMean').hidden=S.qType!=='qcode';$('qHeat').hidden=wordy;
+  const send=S.qType!=='recv';const wordy=S.qType==='word'||S.qType==='qcode'||S.qType==='qso';$('qLetter').hidden=wordy;$('qWord').hidden=!wordy;$('qLevel').style.visibility=S.qType==='qcode'||S.qType==='qso'||S.pro?'hidden':'';$('qMean').hidden=S.qType!=='qcode';$('qHeat').hidden=wordy;$('qsoBox').hidden=S.qType!=='qso';
+  $('qPro').classList.toggle('on',!!S.pro);Q.proStart=S.pro?Date.now():0;Q.proOk=0;Q.proN=0;
   $('quizKeySlot').hidden=!send;$('recvCtl').hidden=send;
   applyHide();renderHeat();nextQ();
 }
 document.querySelectorAll('#qType button').forEach(b=>b.addEventListener('click',()=>{S.qType=b.dataset.v;persist();resetKeyer();stopPlayback();setupQuiz()}));
 document.querySelectorAll('#qLevel button').forEach(b=>b.addEventListener('click',()=>{S.level=+b.dataset.v;persist();resetKeyer();stopPlayback();setupQuiz()}));
+$('qPro').addEventListener('click',()=>{S.pro=!S.pro;persist();resetKeyer();stopPlayback();setupQuiz()});
 function renderHeat(){
   const h=$('qHeat');h.innerHTML='';
   pool().forEach(l=>{const s=S.stats[l];const i=document.createElement('i');i.textContent=l;
@@ -612,12 +617,14 @@ function renderHeat(){
     h.appendChild(i)});
   let n=0,ok=0;pool().forEach(l=>{const s=S.stats[l];if(s){n+=s.n;ok+=s.ok}});
   $('qAcc').textContent=n?Math.round(100*ok/n)+'%':'–';$('qStreak').textContent=Q.streak;
+  if(S.pro&&Q.proStart){const min=Math.max((Date.now()-Q.proStart)/60000,1/60);$('qAcc').textContent=Math.round((Q.proOk||0)/min)+t('perMin')+' · '+(Q.proN?Math.round(100*(Q.proOk||0)/Q.proN):0)+'%'}
 }
-function record(l,good){const s=stat(l);s.n++;if(good)s.ok++;Q.streak=good?Q.streak+1:0;persist();renderHeat()}
+function record(l,good){const s=stat(l);s.n++;if(good)s.ok++;Q.streak=good?Q.streak+1:0;if(S.pro){Q.proN=(Q.proN||0)+1;if(good)Q.proOk=(Q.proOk||0)+1}persist();renderHeat()}
 function nextQ(){
   if(tab!=='quiz')return;
   Q.busy=false;Q.target=pick();Q.last=Q.target;clearLit();
   const L=$('qLetter');
+  if(S.qType==='qso')return qsoStart();
   if(S.qType==='word'||S.qType==='qcode'){Q.word=pickWord();Q.wi=0;renderWord();$('qCode').className='code empty';$('qCode').textContent=S.qType==='qcode'?t('keyQ'):t('keyWord');
     if(S.qType==='qcode')$('qMean').textContent=Q.mean[S.lang==='tr'?1:0];return}
   if(S.qType==='send'){L.textContent=Q.target;$('qCode').className='code empty';$('qCode').textContent=t('keyLetter')}
@@ -625,11 +632,11 @@ function nextQ(){
 }
 function flash(el,cls){el.classList.remove('flash-ok','flash-bad');void el.offsetWidth;el.classList.add(cls)}
 function answerSend(code){
-  if(S.qType==='word'||S.qType==='qcode')return answerWord(code);
+  if(S.qType==='word'||S.qType==='qcode'||S.qType==='qso')return answerWord(code);
   if(Q.busy||S.qType!=='send')return;Q.busy=true;
   const want=BY_LETTER[Q.target].code,good=code===want;record(Q.target,good);
   const q=$('qCode');
-  if(good){haptic('success');lightPath(want,{reveal:true});q.className='code';setCode(q,want,'✓');flash($('qLetter'),'flash-ok');setTimeout(nextQ,800)}
+  if(good){haptic('success');if(!S.pro)lightPath(want,{reveal:true});q.className='code';setCode(q,want,'✓');flash($('qLetter'),'flash-ok');setTimeout(nextQ,800)}
   else{haptic('error');flash($('qLetter'),'flash-bad');q.className='code bad';const n=BY_CODE[code];
     setCode(q,code,n?'= '+n.letter:'?');
     setTimeout(()=>{q.className='code';setCode(q,want);playCode(want,{onDone:()=>{lightPath(want,{reveal:true});setTimeout(nextQ,1100)}})},700)}
@@ -669,7 +676,7 @@ const WORDS_EN='AT IT ME GO NO ON UP WE SO HI OK SOS CAT DOG SUN SEA SKY TEA RED
 const T={
  en:{lHint:'Tap any letter on the tree to hear it and watch its path light up. Right of the antenna starts with a dot, left starts with a dash. Circles are dots, bars are dashes.',
   play:'▶ Play again',walk:'Walk the tree',stop:'■ Stop',hide:'Hide letters',oneKey:'1 key',twoKeys:'· and − keys',space:'Space',clear:'Clear',
-  send:'Send',hear:'Hear',words:'Words',qcodes:'Q codes',streak:'streak',replay:'▶ Replay',showCode:'Show code',showLetters:'Show letters',skip:'Skip',
+  send:'Send',hear:'Hear',words:'Words',qcodes:'Q codes',qso:'QSO',qsoNew:'New QSO',qsoListen:'Listening…',qsoCopy:'Copy by ear',qsoCopied:'(copied by ear)',qsoYour:'Your reply: key it from memory',qsoKeep:'Keep going…',qsoDone:'✓ QSO complete! 73. A new station calls soon…',perMin:'/min',streak:'streak',replay:'▶ Replay',showCode:'Show code',showLetters:'Show letters',skip:'Skip',
   gloss:'Glossary',gSearch:'Search: QRS, slow, 73…',gNone:'Nothing found.',gTip:'<b>New?</b> If the other station is too fast, send <b>QRS</b> (send slower). Also handy: <b>AGN</b> (again), <b>?</b> (repeat / question), <b>PSE</b> (please), <b>TU</b> (thank you). Tap any line to hear it.',gQ:'Q codes',gQp:'Three letters starting with Q. Add ? to make it a question: QRS? = shall I send slower? Without ? it is a request or answer.',gPro:'Prosigns',gProp:'Two letters keyed as one character, no gap between them.',gAb:'Abbreviations',gAbp:'Short forms that save time on the air.',gRst:'Signal report (RST)',gQso:'A typical first contact',gQsop:'TA1XYZ is the other station. K = over, KN = only you reply, SK = end.',key:'KEY',keyHint:'tap for ·   hold for −',keyHintMouse:'left click ·   right click −',mouseOn:'Mouse keys: on',mouseOff:'Mouse keys: off',tLearn:'Learn',tKey:'Key',tQuiz:'Quiz',chMorse:'Morse',chVoice:'Voice',ptt:'PUSH TO TALK',pttHint:'hold and speak',talking:' is talking',quiet:'Channel is quiet. Hold the button to talk.',onAir:'You are on air',otherVoice:'Voice channel: {n} is talking',otherMorse:'Morse channel: {n} is sending',micDenied:'Allow the microphone for Morse Tree in Settings',pps:' pkt/s',rAir:'On air · listening',rHeard:'Heard: ',rBtOff:'Bluetooth is off',rBtDenied:'Allow Bluetooth for Morse Tree in Settings',tRadio:'Radio',hideCopy:'Hide copy',sendText:'Send my text',rOn:'Turn radio on',rOff:'Turn off',rOffSt:'Radio is off',rSearch:'Looking for nearby phones…',rConn:'Connected: ',rNoApp:'Radio works in the iPhone app',tText:'Text',listen:'▶ Listen',practice:'Practice sending',editText:'✎ Edit text',thisLetter:'▶ Letter',practiceShort:'Practice',stopT:'■ Stop',
   tPlace:'Type something to hear it in Morse, then practice sending it',sendNext:'Send: ',chars:' characters',done2:'✓ Done. Starting again…',done:'Done',speed:'Speed',tone:'Tone',gap:'Pause before a letter ends',
   lang:'Language',call:'Your call sign (used in Q code practice)',hapOn:'Haptics on',hapOff:'Haptics off',reset:'Reset quiz stats',resetAgain:'Tap again to reset',cleared:'Stats cleared',
@@ -678,7 +685,7 @@ const T={
   help:'<p>Every letter is a path from the antenna. Read the path and you have the code.</p><p><b>Right side</b> starts with a dot. There, moving right adds a dot and moving down adds a dash.</p><p><b>Left side</b> starts with a dash. There, moving left adds a dash and moving down adds a dot.</p><p>Circles are dots, bars are dashes. Example: R is E → A → R, so · − ·.</p><p>Quiz levels follow the tree depth: level 1 is E T, level 2 adds I A N M, level 3 adds the 3-symbol letters, level 4 is everything, 0-9 drills the numbers. Numbers are 5 symbols: 1–5 start with that many dots, 6–0 start with (number − 5) dashes. Q codes are the short radio phrases hams use, like QTH and QSL.</p><p>Switch to Türkçe in Settings for Turkish words and the letters Ç Ğ Ö Ş Ü.</p><p style="font-size:12px;color:var(--muted)"><b>Open source.</b> Push-to-talk voice uses Codec2 by David Rowe and contributors, licensed under the GNU LGPL 2.1 (github.com/drowe67/codec2). Morse Tree collects no personal data.</p>'},
  tr:{lHint:'Ağaçta bir harfe dokun: sesini duy, yolunun yandığını gör. Antenin sağı nokta ile, solu çizgi ile başlar. Daireler nokta, çubuklar çizgidir.',
   play:'▶ Tekrar çal',walk:'Ağacı gez',stop:'■ Durdur',hide:'Harfleri gizle',oneKey:'1 tuş',twoKeys:'· ve − tuşları',space:'Boşluk',clear:'Temizle',
-  send:'Gönder',hear:'Dinle',words:'Kelime',qcodes:'Q kodları',streak:'seri',replay:'▶ Tekrar',showCode:'Kodu göster',showLetters:'Harfleri göster',skip:'Geç',
+  send:'Gönder',hear:'Dinle',words:'Kelime',qcodes:'Q kodları',qso:'Görüşme',qsoNew:'Yeni görüşme',qsoListen:'Dinleniyor…',qsoCopy:'Kulakla al',qsoCopied:'(kulakla alındı)',qsoYour:'Cevabın: ezbere gönder',qsoKeep:'Devam…',qsoDone:'✓ Görüşme tamam! 73. Birazdan yeni bir istasyon çağıracak…',perMin:'/dk',streak:'seri',replay:'▶ Tekrar',showCode:'Kodu göster',showLetters:'Harfleri göster',skip:'Geç',
   gloss:'Sözlük',gSearch:'Ara: QRS, yavaş, 73…',gNone:'Bulunamadı.',gTip:'<b>Yeni misin?</b> Karşı istasyon çok hızlıysa <b>QRS</b> gönder (daha yavaş gönderin). İşe yarayanlar: <b>AGN</b> (tekrar), <b>?</b> (tekrar / soru), <b>PSE</b> (lütfen), <b>TU</b> (teşekkürler). Dinlemek için satıra dokun.',gQ:'Q kodları',gQp:'Q ile başlayan üç harf. Sonuna ? eklersen soru olur: QRS? = daha yavaş göndereyim mi? ? olmadan istek ya da cevaptır.',gPro:'Prosign’lar',gProp:'İki harf tek karakter gibi, aralarında boşluk olmadan basılır.',gAb:'Kısaltmalar',gAbp:'Yayında zaman kazandıran kısa yazımlar.',gRst:'Sinyal raporu (RST)',gQso:'Örnek bir ilk görüşme',gQsop:'TA1XYZ karşı istasyon. K = sende, KN = sadece sen cevap ver, SK = bitti.',key:'TUŞ',keyHint:'kısa bas ·   uzun bas −',keyHintMouse:'sol tık ·   sağ tık −',mouseOn:'Mouse tuşları: açık',mouseOff:'Mouse tuşları: kapalı',tLearn:'Öğren',tKey:'Tuşla',tQuiz:'Test',chMorse:'Mors',chVoice:'Ses',ptt:'BAS KONUŞ',pttHint:'basılı tut ve konuş',talking:' konuşuyor',quiet:'Kanal sessiz. Konuşmak için tuşa basılı tut.',onAir:'Yayındasın',otherVoice:'Ses kanalında {n} konuşuyor',otherMorse:'Mors kanalında {n} yayında',micDenied:'Ayarlar’dan Morse Tree için mikrofon izni ver',pps:' paket/sn',rAir:'Yayında · dinleniyor',rHeard:'Duyulan: ',rBtOff:'Bluetooth kapalı',rBtDenied:'Ayarlar’dan Morse Tree için Bluetooth izni ver',tRadio:'Telsiz',hideCopy:'Kopyayı gizle',sendText:'Metnimi gönder',rOn:'Telsizi aç',rOff:'Kapat',rOffSt:'Telsiz kapalı',rSearch:'Yakındaki telefonlar aranıyor…',rConn:'Bağlı: ',rNoApp:'Telsiz iPhone uygulamasında çalışır',tText:'Metin',listen:'▶ Dinle',practice:'Göndermeyi çalış',editText:'✎ Metni düzenle',thisLetter:'▶ Harf',practiceShort:'Çalış',stopT:'■ Durdur',
   tPlace:'Bir şey yaz, Mors olarak dinle, sonra göndermeyi çalış',sendNext:'Gönder: ',chars:' karakter',done2:'✓ Bitti. Baştan başlıyor…',done:'Tamam',speed:'Hız',tone:'Ton',gap:'Harf bitiş beklemesi',
   lang:'Dil',call:'Çağrı kodun (Q kodu çalışmasında kullanılır)',hapOn:'Titreşim açık',hapOff:'Titreşim kapalı',reset:'İstatistikleri sıfırla',resetAgain:'Sıfırlamak için tekrar dokun',cleared:'Sıfırlandı',
@@ -696,22 +703,65 @@ function applyLang(){
 }
 function renderWord(){
   const L=Q.word.length;$('qWord').style.fontSize=L>12?'18px':L>9?'21px':L>7?'24px':L>5?'28px':'';
-  $('qWord').innerHTML=[...Q.word].map((ch,i)=>ch===' '?'<span style="width:.45em"></span>':'<span class="'+(i<Q.wi?'done':i===Q.wi?'cur':'')+'">'+ch+'</span>').join('');
+  const blind=S.pro&&S.qType==='qso';
+  $('qWord').innerHTML=[...Q.word].map((ch,i)=>ch===' '?'<span style="width:.45em"></span>':'<span class="'+(i<Q.wi?'done':i===Q.wi?'cur':'')+'">'+(blind&&i>=Q.wi?'_':ch)+'</span>').join('');
 }
 function answerWord(code){
   if(Q.busy)return;
   const ch=Q.word[Q.wi],want=codeOf(ch),base=ch==='İ'?'I':ch,good=code===want;
   record(base,good);
   if(good){
-    haptic('light');lightPath(want,{reveal:true});Q.wi++;while(Q.word[Q.wi]===' ')Q.wi++;renderWord();
-    if(Q.wi>=Q.word.length){Q.busy=true;haptic('success');$('qCode').className='code';$('qCode').textContent='✓ '+Q.word;flash($('qWord'),'flash-ok');setTimeout(nextQ,1100)}
-    else{$('qCode').className='code empty';$('qCode').textContent=t('next')+Q.word[Q.wi]}
+    haptic('light');if(!S.pro)lightPath(want,{reveal:true});Q.wi++;while(Q.word[Q.wi]===' ')Q.wi++;renderWord();
+    if(Q.wi>=Q.word.length){Q.busy=true;haptic('success');$('qCode').className='code';$('qCode').textContent='✓ '+Q.word;flash($('qWord'),'flash-ok');setTimeout(S.qType==='qso'?qsoNext:nextQ,S.qType==='qso'?600:1100)}
+    else{$('qCode').className='code empty';$('qCode').textContent=S.pro&&S.qType==='qso'?t('qsoKeep'):t('next')+Q.word[Q.wi]}
   }else{
     Q.busy=true;haptic('error');flash($('qWord'),'flash-bad');const n=charOf(code);
     setCode($('qCode'),code,n?'= '+n:'?');$('qCode').className='code bad';
-    setTimeout(()=>{setCode($('qCode'),want,ch);$('qCode').className='code';playCode(want,{onDone:()=>{lightPath(want,{reveal:true});Q.busy=false}})},700);
+    setTimeout(()=>{setCode($('qCode'),want,S.pro&&S.qType==='qso'?'':ch);$('qCode').className='code';playCode(want,{onDone:()=>{lightPath(want,{reveal:true});Q.busy=false}})},700);
   }
 }
+// ---------- mock QSO: a simulated contact, they send, you reply ----------
+const QSO_NAMES=['ALI','AYSE','MEHMET','ZEYNEP','JOHN','ANNA','PETER','MARIA','KEN','OLGA'];
+const QSO_QTH=['ANKARA','IZMIR','BURSA','ANTALYA','TRABZON','LONDON','BERLIN','ROMA','MADRID','ATHENS'];
+const QSO_RST=['599','579','589','559','479'];
+function rndOf(a){return a[Math.floor(Math.random()*a.length)]}
+function rndCall(){const pre=rndOf(['TA1','TA3','TA4','TA7','DL','G','F','I','OH','SP']),L='ABCDEFGHIJKLMNOPRSTUVWXYZ';
+  return pre+(/\d$/.test(pre)?'':String(1+Math.floor(Math.random()*9)))+L[Math.floor(Math.random()*25)]+L[Math.floor(Math.random()*25)]+(Math.random()<.5?L[Math.floor(Math.random()*25)]:'')}
+function qsoScript(){
+  const me=myCall()||'TA2ABC',x=rndCall(),n=rndOf(QSO_NAMES),q=rndOf(QSO_QTH),r=rndOf(QSO_RST);
+  return [ // [who, text, meaning en, meaning tr]
+    ['them','CQ CQ DE '+x+' '+x+' K','A general call: anyone? Answer with their call, DE, your call, K.','Genel çağrı: kimse var mı? Onun çağrısı, DE, senin çağrın, K ile cevap ver.'],
+    ['me',x+' DE '+me+' K','Answer the call.','Çağrıyı cevapla.'],
+    ['them',me+' DE '+x+' GM TNX FER CALL UR RST '+r+' NAME '+n+' QTH '+q+' HW? K','Good morning, thanks for the call. Your report is '+r+', name '+n+', location '+q+'. How copy?','Günaydın, çağrı için teşekkürler. Raporun '+r+', adı '+n+', konumu '+q+'. Nasıl alıyorsun?'],
+    ['me','R TNX '+n+' UR 599','Received. Thank them by name and give a report.','Alındı. Adıyla teşekkür et ve rapor ver.'],
+    ['them','R FB '+me+' PSE QRS?','Fine business. They ask if they should send slower (QRS?).','Harika. Daha yavaş göndereyim mi diye soruyor (QRS?).'],
+    ['me','NO TNX QRV','No thanks, you are ready (QRV).','Gerek yok, hazırsın (QRV).'],
+    ['them','OK TNX FER QSO 73 ES GL '+me+' DE '+x+' SK','Thanks for the contact, best regards and good luck. End of contact.','Görüşme için teşekkürler, iyi dilekler ve iyi şanslar. Görüşme sonu.'],
+    ['me','TNX 73 SK','Say goodbye: thanks, 73, SK.','Vedalaş: teşekkürler, 73, SK.'],
+    ['them','E E','Two dits: "bye bye". The QSO is complete.','İki nokta: "bay bay". Görüşme tamamlandı.']];
+}
+function qsoStart(){Q.qso=qsoScript();Q.qi=-1;qsoNext()}
+function qsoNext(){
+  if(tab!=='quiz'||S.qType!=='qso')return;
+  Q.qi++;const line=Q.qso[Q.qi];
+  if(!line){$('qCode').className='code';$('qCode').textContent=t('qsoDone');haptic('success');Q.busy=true;setTimeout(()=>{if(tab==='quiz'&&S.qType==='qso'&&Q.busy)qsoStart()},3500);return}
+  if(line[0]==='them'){
+    Q.busy=true;Q.word='';$('qWord').innerHTML='';$('qCode').className='code empty';$('qCode').textContent=t('qsoListen');
+    Q.them=line;const L=S.lang==='tr'?3:2;
+    $('qsoThem').innerHTML='<b>📻 </b><span class="muted">'+t('qsoListen')+'</span>';
+    setTimeout(()=>{if(tab!=='quiz'||S.qType!=='qso'||Q.them!==line)return;
+      playText(line[1],{onDone:()=>{if(Q.them!==line)return;
+        $('qsoThem').innerHTML='<b>📻 </b>'+(S.pro?'<span class="muted">'+t('qsoCopied')+'</span>':esc(line[1]))+'<small>'+(S.pro?'':esc(line[L]))+'</small>';
+        setTimeout(qsoNext,700)}})},400);
+    return}
+  // my turn
+  const L=S.lang==='tr'?3:2;Q.word=line[1];Q.wi=0;Q.busy=false;renderWord();
+  const them=Q.them;$('qsoThem').innerHTML=them?'<b>📻 </b>'+(S.pro?'<span class="muted">'+t('qsoCopied')+'</span>':esc(them[1]))+'<small>'+esc(line[L])+'</small>':'';
+  $('qCode').className='code empty';$('qCode').textContent=S.pro?t('qsoYour'):t('next')+Q.word[0];
+}
+$('qsoReplay').addEventListener('click',()=>{if(Q.them)playText(Q.them[1])});
+$('qsoNew').addEventListener('click',()=>{stopPlayback();resetKeyer();qsoStart()});
+
 // ---------- Radio: connectionless Bluetooth broadcast ----------
 // Every phone advertises a tiny BLE packet; every phone in range picks it up. Nobody connects, so listeners are unlimited.
 // Packet payload (14 bytes): [sender id][first event index hi][lo][count][up to 10 event bytes]
@@ -937,7 +987,7 @@ function answerRecv(code){
   if(Q.busy)return;Q.busy=true;stopPlayback();
   const want=BY_LETTER[Q.target].code,good=code===want;record(Q.target,good);
   $('qLetter').textContent=Q.target;$('qCode').className='code';setCode($('qCode'),want);
-  if(good){haptic('success');lightPath(want,{reveal:true});flash($('qLetter'),'flash-ok');setTimeout(nextQ,900)}
+  if(good){haptic('success');if(!S.pro)lightPath(want,{reveal:true});flash($('qLetter'),'flash-ok');setTimeout(nextQ,S.pro?500:900)}
   else{haptic('error');flash($('qLetter'),'flash-bad');clearLit();els[code].node.classList.add('bad');els[code].lbl.classList.add('reveal');
     setTimeout(()=>playCode(want,{onDone:()=>{lightPath(want,{reveal:true});els[code].node.classList.add('bad');els[code].lbl.classList.add('reveal');setTimeout(nextQ,1200)}}),500)}
 }
