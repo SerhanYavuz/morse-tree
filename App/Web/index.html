@@ -245,7 +245,7 @@ input[type=range]{width:100%;accent-color:var(--brass)}
       <div style="display:flex;flex-direction:column;gap:6px;min-width:0">
         <div class="code empty" id="qCode">Key this letter</div>
         <div class="heat" id="qHeat"></div><div class="hint" id="qMean" hidden style="color:var(--brass);font-size:13px"></div>
-        <div id="qsoBox" hidden><div class="hint" id="qsoThem"></div><div class="row" style="gap:6px;margin-top:6px"><button class="chip" id="qsoReplay" data-t="replay"></button><button class="chip" id="qsoNew" data-t="qsoNew"></button></div></div>
+        <div id="qsoBox" hidden><div class="hint" id="qsoThem"></div><div class="row" style="gap:6px;margin-top:6px"><button class="chip" id="qsoReplay" data-t="replay"></button><button class="chip" id="qsoShow" data-t="qsoShow"></button><button class="chip" id="qsoNew" data-t="qsoNew"></button></div></div>
       </div>
       <div class="score"><b id="qStreak">0</b><span data-t="streak"></span> · <span id="qAcc">–</span></div>
     </div>
@@ -676,7 +676,7 @@ const WORDS_EN='AT IT ME GO NO ON UP WE SO HI OK SOS CAT DOG SUN SEA SKY TEA RED
 const T={
  en:{lHint:'Tap any letter on the tree to hear it and watch its path light up. Right of the antenna starts with a dot, left starts with a dash. Circles are dots, bars are dashes.',
   play:'▶ Play again',walk:'Walk the tree',stop:'■ Stop',hide:'Hide letters',oneKey:'1 key',twoKeys:'· and − keys',space:'Space',clear:'Clear',
-  send:'Send',hear:'Hear',words:'Words',qcodes:'Q codes',qso:'QSO',qsoNew:'New QSO',qsoListen:'Listening…',qsoCopy:'Copy by ear',qsoCopied:'(copied by ear)',qsoYour:'Your reply: key it from memory',qsoKeep:'Keep going…',qsoDone:'✓ QSO complete! 73. A new station calls soon…',perMin:'/min',streak:'streak',replay:'▶ Replay',showCode:'Show code',showLetters:'Show letters',skip:'Skip',
+  send:'Send',hear:'Hear',words:'Words',qcodes:'Q codes',qso:'QSO',qsoNew:'New QSO',qsoListen:'Listening…',qsoCopy:'Copy by ear',qsoCopied:'(copied by ear)',qsoYour:'Your turn: key the right reply',qsoShow:'Show answer',qsoKeep:'Keep going…',qsoDone:'✓ QSO complete! 73. A new station calls soon…',perMin:'/min',streak:'streak',replay:'▶ Replay',showCode:'Show code',showLetters:'Show letters',skip:'Skip',
   gloss:'Glossary',gSearch:'Search: QRS, slow, 73…',gNone:'Nothing found.',gTip:'<b>New?</b> If the other station is too fast, send <b>QRS</b> (send slower). Also handy: <b>AGN</b> (again), <b>?</b> (repeat / question), <b>PSE</b> (please), <b>TU</b> (thank you). Tap any line to hear it.',gQ:'Q codes',gQp:'Three letters starting with Q. Add ? to make it a question: QRS? = shall I send slower? Without ? it is a request or answer.',gPro:'Prosigns',gProp:'Two letters keyed as one character, no gap between them.',gAb:'Abbreviations',gAbp:'Short forms that save time on the air.',gRst:'Signal report (RST)',gQso:'A typical first contact',gQsop:'TA1XYZ is the other station. K = over, KN = only you reply, SK = end.',key:'KEY',keyHint:'tap for ·   hold for −',keyHintMouse:'left click ·   right click −',mouseOn:'Mouse keys: on',mouseOff:'Mouse keys: off',tLearn:'Learn',tKey:'Key',tQuiz:'Quiz',chMorse:'Morse',chVoice:'Voice',ptt:'PUSH TO TALK',pttHint:'hold and speak',talking:' is talking',quiet:'Channel is quiet. Hold the button to talk.',onAir:'You are on air',otherVoice:'Voice channel: {n} is talking',otherMorse:'Morse channel: {n} is sending',micDenied:'Allow the microphone for Morse Tree in Settings',pps:' pkt/s',rAir:'On air · listening',rHeard:'Heard: ',rBtOff:'Bluetooth is off',rBtDenied:'Allow Bluetooth for Morse Tree in Settings',tRadio:'Radio',hideCopy:'Hide copy',sendText:'Send my text',rOn:'Turn radio on',rOff:'Turn off',rOffSt:'Radio is off',rSearch:'Looking for nearby phones…',rConn:'Connected: ',rNoApp:'Radio works in the iPhone app',tText:'Text',listen:'▶ Listen',practice:'Practice sending',editText:'✎ Edit text',thisLetter:'▶ Letter',practiceShort:'Practice',stopT:'■ Stop',
   tPlace:'Type something to hear it in Morse, then practice sending it',sendNext:'Send: ',chars:' characters',done2:'✓ Done. Starting again…',done:'Done',speed:'Speed',tone:'Tone',gap:'Pause before a letter ends',
   lang:'Language',call:'Your call sign (used in Q code practice)',hapOn:'Haptics on',hapOff:'Haptics off',reset:'Reset quiz stats',resetAgain:'Tap again to reset',cleared:'Stats cleared',
@@ -685,7 +685,7 @@ const T={
   help:'<p>Every letter is a path from the antenna. Read the path and you have the code.</p><p><b>Right side</b> starts with a dot. There, moving right adds a dot and moving down adds a dash.</p><p><b>Left side</b> starts with a dash. There, moving left adds a dash and moving down adds a dot.</p><p>Circles are dots, bars are dashes. Example: R is E → A → R, so · − ·.</p><p>Quiz levels follow the tree depth: level 1 is E T, level 2 adds I A N M, level 3 adds the 3-symbol letters, level 4 is everything, 0-9 drills the numbers. Numbers are 5 symbols: 1–5 start with that many dots, 6–0 start with (number − 5) dashes. Q codes are the short radio phrases hams use, like QTH and QSL.</p><p>Switch to Türkçe in Settings for Turkish words and the letters Ç Ğ Ö Ş Ü.</p><p style="font-size:12px;color:var(--muted)"><b>Open source.</b> Push-to-talk voice uses Codec2 by David Rowe and contributors, licensed under the GNU LGPL 2.1 (github.com/drowe67/codec2). Morse Tree collects no personal data.</p>'},
  tr:{lHint:'Ağaçta bir harfe dokun: sesini duy, yolunun yandığını gör. Antenin sağı nokta ile, solu çizgi ile başlar. Daireler nokta, çubuklar çizgidir.',
   play:'▶ Tekrar çal',walk:'Ağacı gez',stop:'■ Durdur',hide:'Harfleri gizle',oneKey:'1 tuş',twoKeys:'· ve − tuşları',space:'Boşluk',clear:'Temizle',
-  send:'Gönder',hear:'Dinle',words:'Kelime',qcodes:'Q kodları',qso:'Görüşme',qsoNew:'Yeni görüşme',qsoListen:'Dinleniyor…',qsoCopy:'Kulakla al',qsoCopied:'(kulakla alındı)',qsoYour:'Cevabın: ezbere gönder',qsoKeep:'Devam…',qsoDone:'✓ Görüşme tamam! 73. Birazdan yeni bir istasyon çağıracak…',perMin:'/dk',streak:'seri',replay:'▶ Tekrar',showCode:'Kodu göster',showLetters:'Harfleri göster',skip:'Geç',
+  send:'Gönder',hear:'Dinle',words:'Kelime',qcodes:'Q kodları',qso:'Görüşme',qsoNew:'Yeni görüşme',qsoListen:'Dinleniyor…',qsoCopy:'Kulakla al',qsoCopied:'(kulakla alındı)',qsoYour:'Sıra sende: doğru cevabı gönder',qsoShow:'Cevabı göster',qsoKeep:'Devam…',qsoDone:'✓ Görüşme tamam! 73. Birazdan yeni bir istasyon çağıracak…',perMin:'/dk',streak:'seri',replay:'▶ Tekrar',showCode:'Kodu göster',showLetters:'Harfleri göster',skip:'Geç',
   gloss:'Sözlük',gSearch:'Ara: QRS, yavaş, 73…',gNone:'Bulunamadı.',gTip:'<b>Yeni misin?</b> Karşı istasyon çok hızlıysa <b>QRS</b> gönder (daha yavaş gönderin). İşe yarayanlar: <b>AGN</b> (tekrar), <b>?</b> (tekrar / soru), <b>PSE</b> (lütfen), <b>TU</b> (teşekkürler). Dinlemek için satıra dokun.',gQ:'Q kodları',gQp:'Q ile başlayan üç harf. Sonuna ? eklersen soru olur: QRS? = daha yavaş göndereyim mi? ? olmadan istek ya da cevaptır.',gPro:'Prosign’lar',gProp:'İki harf tek karakter gibi, aralarında boşluk olmadan basılır.',gAb:'Kısaltmalar',gAbp:'Yayında zaman kazandıran kısa yazımlar.',gRst:'Sinyal raporu (RST)',gQso:'Örnek bir ilk görüşme',gQsop:'TA1XYZ karşı istasyon. K = sende, KN = sadece sen cevap ver, SK = bitti.',key:'TUŞ',keyHint:'kısa bas ·   uzun bas −',keyHintMouse:'sol tık ·   sağ tık −',mouseOn:'Mouse tuşları: açık',mouseOff:'Mouse tuşları: kapalı',tLearn:'Öğren',tKey:'Tuşla',tQuiz:'Test',chMorse:'Mors',chVoice:'Ses',ptt:'BAS KONUŞ',pttHint:'basılı tut ve konuş',talking:' konuşuyor',quiet:'Kanal sessiz. Konuşmak için tuşa basılı tut.',onAir:'Yayındasın',otherVoice:'Ses kanalında {n} konuşuyor',otherMorse:'Mors kanalında {n} yayında',micDenied:'Ayarlar’dan Morse Tree için mikrofon izni ver',pps:' paket/sn',rAir:'Yayında · dinleniyor',rHeard:'Duyulan: ',rBtOff:'Bluetooth kapalı',rBtDenied:'Ayarlar’dan Morse Tree için Bluetooth izni ver',tRadio:'Telsiz',hideCopy:'Kopyayı gizle',sendText:'Metnimi gönder',rOn:'Telsizi aç',rOff:'Kapat',rOffSt:'Telsiz kapalı',rSearch:'Yakındaki telefonlar aranıyor…',rConn:'Bağlı: ',rNoApp:'Telsiz iPhone uygulamasında çalışır',tText:'Metin',listen:'▶ Dinle',practice:'Göndermeyi çalış',editText:'✎ Metni düzenle',thisLetter:'▶ Harf',practiceShort:'Çalış',stopT:'■ Durdur',
   tPlace:'Bir şey yaz, Mors olarak dinle, sonra göndermeyi çalış',sendNext:'Gönder: ',chars:' karakter',done2:'✓ Bitti. Baştan başlıyor…',done:'Tamam',speed:'Hız',tone:'Ton',gap:'Harf bitiş beklemesi',
   lang:'Dil',call:'Çağrı kodun (Q kodu çalışmasında kullanılır)',hapOn:'Titreşim açık',hapOff:'Titreşim kapalı',reset:'İstatistikleri sıfırla',resetAgain:'Sıfırlamak için tekrar dokun',cleared:'Sıfırlandı',
@@ -703,7 +703,7 @@ function applyLang(){
 }
 function renderWord(){
   const L=Q.word.length;$('qWord').style.fontSize=L>12?'18px':L>9?'21px':L>7?'24px':L>5?'28px':'';
-  const blind=S.pro&&S.qType==='qso';
+  const blind=S.qType==='qso'&&!Q.reveal;
   $('qWord').innerHTML=[...Q.word].map((ch,i)=>ch===' '?'<span style="width:.45em"></span>':'<span class="'+(i<Q.wi?'done':i===Q.wi?'cur':'')+'">'+(blind&&i>=Q.wi?'_':ch)+'</span>').join('');
 }
 function answerWord(code){
@@ -713,11 +713,11 @@ function answerWord(code){
   if(good){
     haptic('light');if(!S.pro)lightPath(want,{reveal:true});Q.wi++;while(Q.word[Q.wi]===' ')Q.wi++;renderWord();
     if(Q.wi>=Q.word.length){Q.busy=true;haptic('success');$('qCode').className='code';$('qCode').textContent='✓ '+Q.word;flash($('qWord'),'flash-ok');setTimeout(S.qType==='qso'?qsoNext:nextQ,S.qType==='qso'?600:1100)}
-    else{$('qCode').className='code empty';$('qCode').textContent=S.pro&&S.qType==='qso'?t('qsoKeep'):t('next')+Q.word[Q.wi]}
+    else{$('qCode').className='code empty';$('qCode').textContent=S.qType==='qso'&&!Q.reveal?t('qsoKeep'):t('next')+Q.word[Q.wi]}
   }else{
     Q.busy=true;haptic('error');flash($('qWord'),'flash-bad');const n=charOf(code);
     setCode($('qCode'),code,n?'= '+n:'?');$('qCode').className='code bad';
-    setTimeout(()=>{setCode($('qCode'),want,S.pro&&S.qType==='qso'?'':ch);$('qCode').className='code';playCode(want,{onDone:()=>{lightPath(want,{reveal:true});Q.busy=false}})},700);
+    setTimeout(()=>{setCode($('qCode'),want,S.qType==='qso'&&!Q.reveal?'':ch);$('qCode').className='code';playCode(want,{onDone:()=>{lightPath(want,{reveal:true});Q.busy=false}})},700);
   }
 }
 // ---------- mock QSO: a simulated contact, they send, you reply ----------
@@ -755,11 +755,12 @@ function qsoNext(){
         setTimeout(qsoNext,700)}})},400);
     return}
   // my turn
-  const L=S.lang==='tr'?3:2;Q.word=line[1];Q.wi=0;Q.busy=false;renderWord();
+  const L=S.lang==='tr'?3:2;Q.word=line[1];Q.wi=0;Q.busy=false;Q.reveal=false;renderWord();
   const them=Q.them;$('qsoThem').innerHTML=them?'<b>📻 </b>'+(S.pro?'<span class="muted">'+t('qsoCopied')+'</span>':esc(them[1]))+'<small>'+esc(line[L])+'</small>':'';
-  $('qCode').className='code empty';$('qCode').textContent=S.pro?t('qsoYour'):t('next')+Q.word[0];
+  $('qCode').className='code empty';$('qCode').textContent=t('qsoYour');
 }
 $('qsoReplay').addEventListener('click',()=>{if(Q.them)playText(Q.them[1])});
+$('qsoShow').addEventListener('click',()=>{if(Q.qso&&Q.word&&!Q.busy){Q.reveal=true;renderWord();$('qCode').className='code empty';$('qCode').textContent=t('next')+Q.word[Q.wi]}});
 $('qsoNew').addEventListener('click',()=>{stopPlayback();resetKeyer();qsoStart()});
 
 // ---------- Radio: connectionless Bluetooth broadcast ----------
