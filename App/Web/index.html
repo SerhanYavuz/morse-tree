@@ -1,0 +1,1050 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Morse Tree</title>
+<style>
+/* Layout: one-screen app — header, the brass tree card, the active mode panel, bottom tab bar. */
+:root{
+  --ground:#0c0d0b; --card:#141513; --card-edge:#2a2721;
+  --brass:#c9a961; --brass-dim:#7d6a40; --ink:#ece6d6; --muted:#8e8775;
+  --lit:#43ff74; --lit-soft:rgba(67,255,116,.18); --bad:#ff5a4e;
+  --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,monospace;
+  --round:"SF Pro Rounded",ui-rounded,-apple-system,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0}
+body{background:radial-gradient(120% 70% at 50% 0%,#1b1c18 0%,var(--ground) 60%);color:var(--ink);font:15px/1.4 var(--sans);
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:manipulation;overflow:hidden}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;touch-action:manipulation}
+button:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+.app{height:100%;display:flex;flex-direction:column;
+  padding:env(safe-area-inset-top,0) max(14px,env(safe-area-inset-right,0px)) 0 max(14px,env(safe-area-inset-left,0px))}
+header{display:flex;align-items:center;justify-content:space-between;height:48px;flex:none}
+header h1{margin:0;font:600 13px var(--mono);letter-spacing:.28em;color:var(--brass)}
+.icon-btn{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;color:var(--muted)}
+.icon-btn:active{background:#ffffff10}
+
+/* Card */
+.card{position:relative;flex:1 1 auto;min-height:0;display:flex;flex-direction:column;
+  background:linear-gradient(#171815,#111210);border-radius:20px;padding:10px 10px 8px;
+  box-shadow:0 0 0 1.5px var(--brass-dim),0 0 0 4px #0a0a09,0 0 0 5px #3a3326,0 18px 40px #000a}
+.card-title{display:flex;justify-content:space-between;padding:2px 34px 0 14px;font:500 17px var(--mono);letter-spacing:.12em;color:var(--brass);flex:none}
+.hole{position:absolute;top:10px;right:10px;width:18px;height:18px;border-radius:50%;background:var(--ground);box-shadow:0 0 0 2.5px var(--brass)}
+svg{flex:1 1 auto;min-height:0;width:100%;display:block}
+.no-tr .tr{display:none}
+.edge{fill:none;stroke-linejoin:round;stroke:var(--brass);stroke-width:3;stroke-linecap:round;transition:stroke .12s}
+.edge.lit{stroke:var(--lit)}
+.node{fill:#1d1d1a;stroke:var(--brass);stroke-width:2.6;transition:fill .12s,stroke .12s}
+.node.lit{fill:var(--lit);stroke:#b8ffca;filter:url(#glow)}
+.node.bad{fill:var(--bad);stroke:#ffb3ad}
+.node.sel{stroke:#fff}
+.lbl{fill:var(--brass);font:500 19px var(--mono);text-anchor:middle;dominant-baseline:middle;transition:opacity .2s,fill .12s}
+.lbl.lit{fill:var(--lit)}
+.hide-labels .lbl{opacity:0}
+.hide-labels .lbl.reveal{opacity:1}
+.dnode{stroke-width:1.6}
+.dl{font-size:17px;font-weight:600}
+.dl.lit{fill:#0c0d0b}
+.dg *{fill:var(--brass)}
+.dg.lit *{fill:#0c0d0b}
+.numhead{fill:var(--muted);font:500 11px var(--mono);letter-spacing:.1em;dominant-baseline:middle}
+.numrule{stroke:var(--card-edge);stroke-width:1}
+.hide-labels .dg{opacity:0}
+.hit{fill:transparent;cursor:pointer}
+.antenna{stroke:var(--brass);stroke-width:2.6;fill:none;stroke-linejoin:round}
+
+/* Panel */
+.panel{flex:none;height:258px;display:flex;flex-direction:column;gap:10px;padding:14px 2px 10px}
+.panel[hidden]{display:none!important}
+.row{display:flex;gap:8px;align-items:center}
+.spread{justify-content:space-between}
+.chip{height:32px;padding:0 13px;border-radius:16px;background:#ffffff0d;color:var(--ink);font-size:13px;font-weight:500;white-space:nowrap}
+.chip.on{background:var(--brass);color:#16130b}
+.chip:active{transform:scale(.97)}
+.seg{display:flex;background:#ffffff0d;border-radius:10px;padding:2px}
+.seg button{flex:1;height:30px;border-radius:8px;font-size:13px;font-weight:600;color:var(--muted);padding:0 10px;white-space:nowrap}
+#qLevel button{padding:0 8px}
+.seg button.on{background:#2b2a25;color:var(--ink)}
+.big-letter{font:600 54px/1 var(--round);color:var(--ink);min-width:52px;text-align:center}
+.code{font:700 30px/1 var(--mono);letter-spacing:.18em;color:var(--lit)}
+.code.empty{color:var(--muted);font-size:15px;letter-spacing:0;font-weight:500;font-family:var(--sans)}
+.code.bad{color:var(--bad)}
+.hint{color:var(--muted);font-size:13px;line-height:1.45}
+.sym{display:inline-flex;align-items:center;gap:7px;vertical-align:middle}
+.sym i{display:block;height:11px;border-radius:6px;background:currentColor}
+.sym i.d{width:11px}.sym i.h{width:32px}
+.score .sym i,.heat .sym i{height:6px}
+.crumbs{font:500 14px var(--mono);color:var(--brass)}
+
+/* Keyer */
+#keyer{flex:1;min-height:0;display:flex}
+.key{flex:1;border-radius:18px;background:linear-gradient(#2a2822,#1d1c18);box-shadow:inset 0 1px 0 #ffffff14,0 0 0 1.5px var(--brass-dim),0 6px 0 #070706;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font:600 18px var(--mono);letter-spacing:.2em;color:var(--brass);transition:transform .05s,box-shadow .05s}
+.key small{font:500 11px var(--sans);letter-spacing:.04em;color:var(--muted)}
+.key.down,.key:active{transform:translateY(4px);box-shadow:inset 0 1px 0 #ffffff14,0 0 0 1.5px var(--lit),0 2px 0 #070706;color:var(--lit)}
+#twoKeys{flex:1;display:flex;gap:10px}
+#twoKeys .key{font-size:44px;letter-spacing:0}
+.output{height:44px;border-radius:12px;background:#00000055;box-shadow:inset 0 0 0 1px #ffffff10;padding:0 12px;display:flex;align-items:center;gap:8px;overflow:hidden}
+.output .text{flex:1;font:500 20px var(--mono);letter-spacing:.06em;white-space:nowrap;overflow:hidden;direction:rtl;text-align:left}
+.output .text span{direction:ltr;unicode-bidi:embed}
+.output .cur{color:var(--lit);display:flex}
+.caret{display:inline-block;width:2px;height:20px;background:var(--brass);vertical-align:middle;animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+
+/* Quiz */
+.prompt{display:flex;align-items:center;gap:14px;min-height:62px}
+#tInput{flex:1;min-height:0;resize:none;border:0;border-radius:12px;background:#00000055;box-shadow:inset 0 0 0 1px #ffffff14;color:var(--ink);
+  font:500 18px/1.4 var(--mono);letter-spacing:.06em;padding:10px 12px;-webkit-user-select:text;user-select:text;text-transform:uppercase}
+#tInput:focus{outline:2px solid var(--brass)}
+#tInput::placeholder{color:var(--muted);text-transform:none;letter-spacing:0;font-family:var(--sans);font-size:15px}
+.tview{font:600 20px/1.35 var(--mono);letter-spacing:.08em;max-height:3.1em;overflow-y:auto;white-space:pre-wrap;word-break:break-word}
+.tview span{color:var(--muted)}
+.tview span.done{color:var(--lit)}
+.tview span.cur{color:var(--ink);background:#c9a96133;border-radius:3px;box-shadow:0 2px 0 var(--brass)}
+.tview span.skip{opacity:.4}
+.typing .card,.typing nav{display:none!important}
+.typing .panel{height:auto;flex:1}
+.rstatus{display:flex;justify-content:space-between;gap:8px;font-size:12px;margin-top:-4px;white-space:nowrap;overflow:hidden}
+.rstatus #rStatus{overflow:hidden;text-overflow:ellipsis;min-width:0}
+.rstatus #rRate{font-variant-numeric:tabular-nums;color:var(--muted);flex:none}
+.talk{font:600 17px var(--sans);gap:10px}
+.talk .dot{width:10px;height:10px;border-radius:50%;background:var(--muted);flex:none}
+.talk.live .dot{background:var(--lit);box-shadow:0 0 10px var(--lit)}
+.talk.me .dot{background:var(--bad);box-shadow:0 0 10px var(--bad)}
+.ptt{font-size:20px}
+.ptt.down{color:var(--bad);box-shadow:inset 0 1px 0 #ffffff14,0 0 0 2px var(--bad),0 2px 0 #070706}
+.log .tx{color:var(--lit)}
+.log .tag{color:var(--brass);font-size:12px;letter-spacing:.04em;margin-right:4px}
+.log .rx{color:var(--ink)}
+.log .rx.hid{color:var(--muted)}
+.rxcur{display:flex;color:var(--brass)}
+.word{font:600 34px/1.1 var(--round);letter-spacing:.04em;display:flex;flex:none}
+.word span{color:var(--muted);border-bottom:3px solid transparent}
+.word span.done{color:var(--lit)}
+.word span.cur{color:var(--ink);border-color:var(--brass)}
+.score{margin-left:auto;text-align:right;font:500 12px var(--sans);color:var(--muted);font-variant-numeric:tabular-nums}
+.score b{display:block;font:600 20px var(--round);color:var(--ink)}
+.heat{display:flex;gap:3px;flex-wrap:wrap}
+.heat i{font:600 10px/16px var(--mono);font-style:normal;width:16px;text-align:center;border-radius:3px;color:#0c0d0b}
+.flash-ok{animation:ok .5s}
+.flash-bad{animation:bad .5s}
+@keyframes ok{30%{color:var(--lit)}}
+@keyframes bad{20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
+
+/* Tabs */
+nav{flex:none;display:flex;border-top:1px solid #ffffff12;margin:0 calc(-1*max(14px,env(safe-area-inset-left,0px)));
+  padding:6px max(14px,env(safe-area-inset-right,0px)) max(8px,env(safe-area-inset-bottom,0px))}
+nav button{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;font-weight:500;color:var(--muted);padding:4px 0}
+nav button svg{width:24px;height:24px;flex:none}
+nav button.on{color:var(--brass)}
+
+/* Settings sheet */
+.sheet-bg{position:fixed;inset:0;background:#000a;display:flex;align-items:flex-end;z-index:20}
+.sheet{width:100%;background:#1a1a17;border-radius:20px 20px 0 0;padding:18px max(20px,env(safe-area-inset-right,0px)) max(24px,env(safe-area-inset-bottom,0px)) max(20px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:18px}
+.sheet h2{margin:0;font:600 17px var(--sans)}
+/* glossary */
+.sheet{max-height:90vh;max-height:90dvh}
+#glossBody{min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;gap:14px;margin:0 -4px;padding:0 4px}
+#gSearch{height:40px;border-radius:10px;border:0;background:#ffffff10;color:var(--ink);font:500 15px var(--sans);padding:0 12px;-webkit-user-select:text;user-select:text;flex:none}
+#gSearch:focus{outline:2px solid var(--brass)}
+.g-tip{background:#ffffff0a;border-left:3px solid var(--brass);border-radius:8px;padding:10px 12px;font-size:14px;line-height:1.45}
+.g-tip b{color:var(--brass);font-family:var(--mono)}
+.g-sec h3{margin:6px 0 4px;font:600 12px var(--mono);letter-spacing:.18em;color:var(--brass);text-transform:uppercase}
+.g-sec p{margin:0 0 6px;font-size:13px;color:var(--muted);line-height:1.4}
+.g-row{display:grid;grid-template-columns:64px 1fr;gap:2px 12px;width:100%;text-align:left;padding:9px 6px;border-radius:8px;border-bottom:1px solid #ffffff0c}
+.g-row:active{background:#ffffff10}
+.g-row .c{font:600 15px var(--mono);color:var(--ink);grid-row:span 2;align-self:center}
+.g-row .m{font-size:14px;color:var(--ink);line-height:1.35}
+.g-row .s{font:13px var(--mono);color:var(--muted);letter-spacing:.06em}
+.g-row.hot .c{color:var(--brass)}
+.g-qso{font:13px/1.4 var(--mono);color:var(--ink);background:#ffffff08;border-radius:8px;padding:8px 10px;margin-bottom:4px;word-break:break-word}
+.g-qso small{display:block;font:12px var(--sans);color:var(--muted);margin-top:3px}
+.g-empty{font-size:14px;color:var(--muted);padding:8px 0}
+.hdr-side{display:flex;width:76px}.hdr-side.r{justify-content:flex-end}
+#helpBody{font-size:14px;color:var(--ink)}#helpBody p{margin:0 0 10px}#helpBody b{color:var(--brass)}
+#call{height:40px;border-radius:10px;border:0;background:#ffffff10;color:var(--ink);font:600 18px var(--mono);letter-spacing:.12em;padding:0 12px;-webkit-user-select:text;user-select:text;text-transform:uppercase}
+#call:focus{outline:2px solid var(--brass)}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{display:flex;justify-content:space-between;font-size:14px;color:var(--muted)}
+.field label b{color:var(--ink);font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--brass)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+@media (max-height:700px){.panel{height:236px}.big-letter{font-size:44px}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="hdr-side">
+    <button class="icon-btn" id="helpBtn" aria-label="How the tree works">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9.5"/><path d="M9.5 9.3a2.6 2.6 0 0 1 5 .9c0 1.7-2.5 2.3-2.5 3.8"/><circle cx="12" cy="17.2" r=".6" fill="currentColor"/></svg>
+    </button>
+    <button class="icon-btn" id="glossBtn" aria-label="Glossary">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/><path d="M9 8h7M9 12h5"/></svg>
+    </button>
+    </div>
+    <h1>MORSE TREE</h1>
+    <div class="hdr-side r">
+    <button class="icon-btn" id="setBtn" aria-label="Settings">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
+    </button>
+    </div>
+  </header>
+
+  <div class="card" id="card">
+    <div class="hole"></div>
+    <div class="card-title"><span>MORSE</span><span>CODE</span></div>
+    <svg id="tree" viewBox="-22 16 482 582" preserveAspectRatio="xMidYMid meet" aria-label="Morse code tree">
+      <defs><filter id="glow" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+      <g id="edges"></g><g id="nodes"></g><g id="labels"></g><g id="hits"></g>
+    </svg>
+  </div>
+
+  <!-- LEARN -->
+  <section class="panel" id="p-learn">
+    <div class="prompt">
+      <div class="big-letter" id="lLetter">E</div>
+      <div style="display:flex;flex-direction:column;gap:8px;min-width:0">
+        <div class="code" id="lCode"></div>
+        <div class="crumbs" id="lCrumbs">E</div>
+      </div>
+    </div>
+    <p class="hint" id="lHint" style="margin:0" data-t="lHint"></p>
+    <div class="row" style="margin-top:auto">
+      <button class="chip" id="lPlay" data-t="play"></button>
+      <button class="chip" id="lWalk" data-t="walk"></button>
+      <button class="chip" id="lHide" data-t="hide"></button>
+    </div>
+  </section>
+
+  <!-- KEY -->
+  <section class="panel" id="p-key" hidden>
+    <div class="output"><div class="text" id="kOut"><span></span></div><span class="caret"></span><span class="cur" id="kCur"></span></div>
+    <div class="row spread">
+      <div class="seg" id="kMode"><button data-v="1" data-t="oneKey"></button><button data-v="2" data-t="twoKeys"></button></div>
+      <div class="row"><button class="chip" id="kSpace" data-t="space"></button><button class="chip" id="kClear" data-t="clear"></button></div>
+    </div>
+    <div id="keySlot" style="flex:1;min-height:0;display:flex"></div>
+  </section>
+
+  <!-- QUIZ -->
+  <section class="panel" id="p-quiz" hidden>
+    <div class="row spread">
+      <div class="seg" id="qType"><button data-v="send" data-t="send"></button><button data-v="recv" data-t="hear"></button><button data-v="word" data-t="words"></button><button data-v="qcode" data-t="qcodes"></button></div>
+      <div class="seg" id="qLevel"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">0-9</button></div>
+    </div>
+    <div class="prompt">
+      <div class="big-letter" id="qLetter">E</div><div class="word" id="qWord" hidden></div>
+      <div style="display:flex;flex-direction:column;gap:6px;min-width:0">
+        <div class="code empty" id="qCode">Key this letter</div>
+        <div class="heat" id="qHeat"></div><div class="hint" id="qMean" hidden style="color:var(--brass);font-size:13px"></div>
+      </div>
+      <div class="score"><b id="qStreak">0</b><span data-t="streak"></span> · <span id="qAcc">–</span></div>
+    </div>
+    <div id="quizKeySlot" style="flex:1;min-height:0;display:flex"></div>
+    <div id="recvCtl" class="row" style="flex:1;align-items:flex-end" hidden>
+      <button class="chip" id="qReplay" data-t="replay"></button>
+      <button class="chip" id="qShowCode" data-t="showCode"></button>
+      <button class="chip" id="qShowLetters" data-t="showLetters"></button>
+      <button class="chip" id="qSkip" style="margin-left:auto" data-t="skip"></button>
+    </div>
+  </section>
+
+  <!-- RADIO -->
+  <section class="panel" id="p-radio" hidden>
+    <div class="row spread"><button class="chip" id="rPower"></button><div class="seg" id="rMode"><button data-v="morse" data-t="chMorse"></button><button data-v="voice" data-t="chVoice"></button></div></div>
+    <div class="hint rstatus"><span id="rStatus"></span><span id="rRate"></span></div>
+    <div class="output" id="rLogBox"><div class="text log" id="rLog"><span></span></div><span class="cur" id="rCur"></span><span class="rxcur" id="rRxCur"></span></div>
+    <div class="output talk" id="rTalk" hidden><span class="dot"></span><span id="rTalkTxt"></span></div>
+    <div class="row" id="rMorseRow"><button class="chip" id="rHide" data-t="hideCopy"></button><button class="chip" id="rSendText" data-t="sendText"></button><button class="chip" id="rClear" data-t="clear" style="margin-left:auto"></button></div>
+    <div id="radioKeySlot" style="flex:1;min-height:0;display:flex"></div>
+    <div id="pttSlot" style="flex:1;min-height:0;display:flex" hidden><button class="key ptt" id="ptt"><span data-t="ptt"></span><small data-t="pttHint"></small></button></div>
+  </section>
+
+  <!-- TEXT -->
+  <section class="panel" id="p-text" hidden>
+    <div id="tEditBox" style="flex:1;min-height:0;display:flex;flex-direction:column;gap:10px">
+      <textarea id="tInput" rows="3" autocapitalize="characters" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
+      <div class="row"><button class="chip" id="tListen" data-t="listen"></button><button class="chip" id="tPractice" data-t="practice"></button><span class="hint" id="tStat" style="margin-left:auto"></span></div>
+    </div>
+    <div id="tRunBox" hidden style="flex:1;min-height:0;display:flex;flex-direction:column;gap:8px">
+      <div class="row spread"><button class="chip" id="tBack" data-t="editText"></button><div class="row"><button class="chip" id="tHint" data-t="thisLetter"></button><button class="chip" id="tGo" data-t="practiceShort"></button><button class="chip" id="tAgain" data-t="listen"></button></div></div>
+      <div class="tview" id="tView"></div>
+      <div class="code empty" id="tCode" style="min-height:30px;display:flex;align-items:center"></div>
+      <div id="textKeySlot" style="flex:1;min-height:0;display:flex"></div>
+    </div>
+  </section>
+
+  <div id="park" hidden></div>
+  <div id="keyer">
+    <button class="key" id="bigKey"><span data-t="key"></span><small data-t="keyHint"></small></button>
+    <div id="twoKeys" hidden><button class="key" id="dotKey" aria-label="dot">·</button><button class="key" id="dashKey" aria-label="dash">−</button></div>
+  </div>
+
+  <nav>
+    <button data-tab="learn" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v6M8 3l4 4 4-4M12 9H5v6M12 9h7v4M5 15v5M19 13h-4v5"/><circle cx="5" cy="15" r="1.6"/><circle cx="19" cy="13" r="1.6"/></svg><span data-t="tLearn"></span></button>
+    <button data-tab="key"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="15" width="18" height="5" rx="1.5"/><path d="M7 15l2-6h6l2 6M12 9V5"/><circle cx="12" cy="4" r="1.3"/></svg><span data-t="tKey"></span></button>
+    <button data-tab="text"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 11h10M4 16h7"/><circle cx="17.5" cy="16" r="1.4" fill="currentColor"/><path d="M15 20h6"/></svg><span data-t="tText"></span></button>
+    <button data-tab="radio"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 11v10M9 21h6"/><circle cx="12" cy="9" r="2"/><path d="M8.2 5.2a5.4 5.4 0 0 0 0 7.6M15.8 5.2a5.4 5.4 0 0 1 0 7.6M5.4 2.4a9.4 9.4 0 0 0 0 13.2M18.6 2.4a9.4 9.4 0 0 1 0 13.2"/></svg><span data-t="tRadio"></span></button>
+    <button data-tab="quiz"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg><span data-t="tQuiz"></span></button>
+  </nav>
+</div>
+
+<div class="sheet-bg" id="sheet" hidden>
+  <div class="sheet">
+    <div class="row spread"><h2 id="sheetTitle">Settings</h2><button class="chip" id="sheetClose" data-t="done"></button></div>
+    <div id="setBody">
+      <div style="display:flex;flex-direction:column;gap:18px">
+        <div class="field"><label data-t="lang"></label><div class="seg" id="langSeg"><button data-v="en">English</button><button data-v="tr">Türkçe</button></div></div>
+        <div class="field"><label for="call"><span data-t="call"></span></label><input type="text" id="call" maxlength="10" autocapitalize="characters" autocomplete="off" autocorrect="off" spellcheck="false"></div>
+        <div class="field"><label for="wpm"><span data-t="speed"></span> <b id="wpmV">12 wpm</b></label><input type="range" id="wpm" min="5" max="25" step="1"></div>
+        <div class="field"><label for="tone"><span data-t="tone"></span> <b id="toneV">650 Hz</b></label><input type="range" id="tone" min="400" max="900" step="10"></div>
+        <div class="field"><label for="gap"><span data-t="gap"></span> <b id="gapV">0.6 s</b></label><input type="range" id="gap" min="300" max="1500" step="50"></div>
+        <div class="row"><button class="chip" id="hapt"></button><button class="chip" id="mouseK"></button><button class="chip" id="resetStats" style="margin-left:auto" data-t="reset"></button></div>
+      </div>
+    </div>
+    <div id="glossBody" hidden>
+      <input type="search" id="gSearch" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
+      <div id="gList" style="display:flex;flex-direction:column;gap:14px"></div>
+    </div>
+    <div id="helpBody" hidden class="hint" style="font-size:14px;color:var(--ink);display:flex;flex-direction:column;gap:10px" data-th="help"></div>
+  </div>
+</div>
+
+<script>
+// ---------- data ----------
+// [code, letter, x, y, label side]
+const TREE=[
+ ['.','E',250,80,'n'],['..','I',310,80,'n'],['...','S',370,80,'n'],['....','H',430,80,'n'],
+ ['-','T',150,80,'n'],['--','M',90,80,'n'],['---','O',30,80,'n'],
+ ['--.','G',90,146,'e'],['--.-','Q',30,146,'w'],['--..','Z',90,210,'e'],
+ ['-.','N',150,276,'ne'],['-.-','K',90,276,'n'],['-.--','Y',30,276,'n'],['-.-.','C',90,340,'e'],
+ ['-..','D',150,403,'ne'],['-..-','X',90,403,'w'],['-...','B',150,470,'w'],
+ ['.-','A',250,276,'sw'],['.-.','R',310,276,'s'],['.-..','L',370,276,'e'],
+ ['.--','W',250,403,'sw'],['.--.','P',310,403,'s'],['.---','J',250,470,'e'],
+ ['..-','U',310,146,'w'],['..-.','F',310,210,'w'],['...-','V',370,146,'e'],
+ // Turkish letters
+ ['---.','Ö',30,112,'w',null,1],['--.-.','Ğ',30,210,'w',null,1],['-.-..','Ç',90,372,'e',null,1],
+ ['.--..','Ş',370,403,'e',null,1],['..--','Ü',345,210,'e',[345,146],1],
+];
+const ROOT={x:200,y:80};
+const BY_CODE={},BY_LETTER={};
+TREE.forEach(([c,l,x,y,s,via,tr])=>{const n={code:c,letter:l,x,y,side:s,via,tr:!!tr};BY_CODE[c]=n;BY_LETTER[l]=n});
+BY_LETTER['İ']=BY_LETTER['I'];
+const walkList=()=>('ETIANMSURWDKGOHVFLPJBXCYZQ'+(S.tr?'ÖÜÇĞŞ':'')+'1234567890').split('');
+const active=c=>{const n=BY_CODE[c];return n&&(!n.tr||S.tr)};
+const DIGITS={'1':'.----','2':'..---','3':'...--','4':'....-','5':'.....','6':'-....','7':'--...','8':'---..','9':'----.','0':'-----','?':'..--..','/':'-..-.','=':'-...-','.':'.-.-.-',',':'--..--'};
+const DIGIT_BY_CODE=Object.fromEntries(Object.entries(DIGITS).map(([d,c])=>[c,d]));
+const codeOf=ch=>DIGITS[ch]||(BY_LETTER[ch]&&BY_LETTER[ch].code);
+const charOf=c=>active(c)?BY_CODE[c].letter:(DIGIT_BY_CODE[c]||null);
+const validPrefix=c=>active(c)||Object.values(DIGITS).some(d=>d.startsWith(c));
+const OFF={n:[0,-24],s:[0,30],e:[25,7],w:[-25,7],ne:[19,-15],sw:[-21,25]};
+const glyph=c=>c.split('').map(s=>s==='.'?'·':'−').join('');
+const symHTML=c=>'<span class="sym">'+c.split('').map(s=>'<i class="'+(s==='.'?'d':'h')+'"></i>').join('')+'</span>';
+function setCode(el,c,extra=''){el.innerHTML=symHTML(c)+(extra?'<span style="margin-left:12px;font-size:18px;letter-spacing:0">'+extra+'</span>':'')}
+
+// ---------- storage (native bridge in the app, localStorage in a browser) ----------
+const Store={
+  load(){try{if(window.__STORE)return window.__STORE;return JSON.parse(localStorage.getItem('morsetree')||'{}')}catch(e){return{}}},
+  save(o){const s=JSON.stringify(o);try{window.webkit.messageHandlers.store.postMessage(s)}catch(e){}try{localStorage.setItem('morsetree',s)}catch(e){}}
+};
+const saved=Store.load();
+const S=Object.assign({rmode:'morse',text:'CQ CQ DE TA2SYW K',call:'TA2SYW',lang:'en',tr:false,wpm:12,tone:650,gap:600,haptics:true,mouseKeys:null,twoKeys:false,qType:'send',level:2,hide:false,stats:{}},saved);
+const persist=()=>Store.save(S);
+const unit=()=>1200/S.wpm;
+function haptic(k){if(!S.haptics)return;try{window.webkit.messageHandlers.haptic.postMessage(k)}catch(e){}}
+
+// ---------- build tree ----------
+const $=id=>document.getElementById(id);
+const NS='http://www.w3.org/2000/svg';
+const mk=(tag,attrs,parent)=>{const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);parent&&parent.appendChild(e);return e};
+const els={};
+(function build(){
+  const gE=$('edges'),gN=$('nodes'),gL=$('labels'),gH=$('hits');
+  mk('path',{d:'M186 30 L200 50 L214 30 M200 26 V80',class:'antenna'},gN);
+  mk('circle',{cx:200,cy:80,r:4,fill:'var(--brass)'},gN);
+  TREE.forEach(([c])=>{
+    const n=BY_CODE[c],p=c.length>1?BY_CODE[c.slice(0,-1)]:ROOT;
+    const e=mk('path',{d:'M'+p.x+' '+p.y+(n.via?' L'+n.via[0]+' '+n.via[1]:'')+' L'+n.x+' '+n.y,class:'edge'+(n.tr?' tr':'')},gE);
+    let shape;
+    if(c.endsWith('.')) shape=mk('circle',{cx:n.x,cy:n.y,r:12.5,class:'node'},gN);
+    else{const from=n.via||p;const horiz=from.y===n.y;const w=horiz?31:17,h=horiz?17:31;shape=mk('rect',{x:n.x-w/2,y:n.y-h/2,width:w,height:h,rx:3,class:'node'},gN)}
+    if(n.tr)shape.classList.add('tr');
+    const o=OFF[n.side];
+    const t=mk('text',{x:n.x+o[0],y:n.y+o[1],class:'lbl'+(n.tr?' tr':'')},gL);t.textContent=n.letter;
+    const hit=mk('circle',{cx:n.x,cy:n.y,r:n.tr||['--.-','-.-.','---'].includes(c)?17:24,class:'hit'+(n.tr?' tr':'')},gH);
+    hit.addEventListener('click',()=>onTreeTap(c));
+    els[c]={edge:e,node:shape,lbl:t};
+  });
+})();
+
+// numbers 0-9: two rows of chips under the tree; each shows its 5-symbol code
+const NUMS='1234567890'.split('');
+(function buildNums(){
+  const g=mk('g',{},$('hits').parentNode);
+  mk('text',{x:-12,y:503,class:'numhead'},g).textContent='0 – 9';
+  mk('line',{x1:40,y1:503,x2:450,y2:503,class:'numrule'},g);
+  NUMS.forEach((d,i)=>{
+    const code=DIGITS[d],col=i%5,row=Math.floor(i/5),x=-18+col*95.6,y=518+row*40;
+    const n={code,letter:d,x:x+44,y:y+15,digit:true};BY_CODE[code]=n;BY_LETTER[d]=n;
+    const bg=mk('rect',{x,y,width:90,height:30,rx:7,class:'node dnode'},g);
+    const lbl=mk('text',{x:x+14,y:y+16,class:'lbl dl'},g);lbl.textContent=d;
+    // fit the 5 symbols inside the chip: dot 5 wide, dash 9 wide, 3 gap, centred right of the digit
+    const gl=mk('g',{class:'dg'},g),syms=code.split(''),wid=syms.reduce((w,c)=>w+(c==='.'?5:9),0)+3*(syms.length-1);
+    let gx=x+25+(60-wid)/2;
+    syms.forEach(sym=>{if(sym==='.'){mk('circle',{cx:gx+2.5,cy:y+15,r:2.5},gl);gx+=5+3}else{mk('rect',{x:gx,y:y+12.75,width:9,height:4.5,rx:1.4},gl);gx+=9+3}});
+    const hit=mk('rect',{x,y:y-4,width:90,height:38,class:'hit'},g);hit.addEventListener('click',()=>onTreeTap(code));
+    els[code]={edge:gl,node:bg,lbl};
+  });
+})();
+function clearLit(){for(const c in els){const x=els[c];x.edge.classList.remove('lit');x.node.classList.remove('lit','bad','sel');x.lbl.classList.remove('lit','reveal')}}
+function lightPath(code,{reveal=false}={}){
+  clearLit();
+  for(let i=1;i<=code.length;i++){const x=els[code.slice(0,i)];if(!x)continue;x.edge.classList.add('lit');x.node.classList.add('lit');if(i===code.length){x.lbl.classList.add('lit');if(reveal)x.lbl.classList.add('reveal')}}
+}
+function lightStep(code){ // light only up to this prefix, keep earlier ones
+  const x=els[code];if(!x)return;x.edge.classList.add('lit');x.node.classList.add('lit');
+}
+function applyHide(){
+  const hide=(tab==='learn'&&S.hide)||(tab==='quiz'&&S.qType==='recv'&&!S.showLetters);
+  $('card').classList.toggle('hide-labels',hide);
+  $('lHide').classList.toggle('on',S.hide);
+  $('qShowLetters').classList.toggle('on',!!S.showLetters);
+}
+
+// ---------- audio ----------
+let ctx,osc,gain,rxOsc,rxGain;
+function ensureAudio(){
+  try{
+    if(!ctx){ctx=new (window.AudioContext||window.webkitAudioContext)();gain=ctx.createGain();gain.gain.value=0;gain.connect(ctx.destination);
+      osc=ctx.createOscillator();osc.type='sine';osc.frequency.value=S.tone;osc.connect(gain);osc.start();
+      rxGain=ctx.createGain();rxGain.gain.value=0;rxGain.connect(ctx.destination);rxOsc=ctx.createOscillator();rxOsc.type='sine';rxOsc.frequency.value=S.tone*0.82;rxOsc.connect(rxGain);rxOsc.start()}
+    if(ctx.state!=='running')ctx.resume();
+  }catch(e){}
+}
+const VOL=0.32;
+function toneOn(){if(!ctx)return;const t=ctx.currentTime;gain.gain.cancelScheduledValues(t);gain.gain.setTargetAtTime(VOL,t,0.004)}
+function toneOff(){if(!ctx)return;const t=ctx.currentTime;gain.gain.cancelScheduledValues(t);gain.gain.setTargetAtTime(0,t,0.004)}
+let playTimers=[],playToken=0;
+let playing=false,keyEnd=0; // keyEnd: audio time when the keyer is silent again (tone + required gap)
+function stopPlayback(){playToken++;playTimers.forEach(clearTimeout);playTimers=[];if(playing){toneOff();playing=false}}
+function rampOn(t){const g=gain.gain;g.cancelScheduledValues(t);g.setValueAtTime(0,t);g.linearRampToValueAtTime(VOL,t+0.005)}
+function rampOff(t){const g=gain.gain;g.cancelScheduledValues(t);g.setValueAtTime(VOL,t);g.linearRampToValueAtTime(0,t+0.005)}
+const minGap=()=>Math.max(0.035,unit()/2000); // always leave an audible gap between elements
+// plays a code; animate lights each node as its tone starts
+function playCode(code,{animate=true,onDone}={}){
+  ensureAudio();stopPlayback();const tok=playToken;playing=true;
+  const u=unit()/1000;
+  const later=(ms,fn)=>playTimers.push(setTimeout(()=>{if(tok===playToken)fn()},ms));
+  if(animate)clearLit();
+  if(!ctx){ // no audio: still animate
+    let t=0;code.split('').forEach((s,i)=>{later(t*1000,()=>animate&&lightStep(code.slice(0,i+1)));t+=(s==='.'?u:3*u)+u});
+    if(onDone)later(t*1000,onDone);return;
+  }
+  const now=ctx.currentTime,start=now+0.06;let t=start;
+  gain.gain.cancelScheduledValues(now);gain.gain.setValueAtTime(0,now);
+  code.split('').forEach((s,i)=>{
+    const d=s==='.'?u:3*u;
+    gain.gain.setTargetAtTime(VOL,t,0.004);gain.gain.setTargetAtTime(0,t+d,0.004);
+    const pre=code.slice(0,i+1);
+    later((t-now)*1000,()=>{if(animate){lightStep(pre);if(i===code.length-1)els[pre]&&els[pre].lbl.classList.add('lit')}});
+    t+=d+u;
+  });
+  later((t-now)*1000,()=>{playing=false;onDone&&onDone()});
+}
+
+// ---------- tabs ----------
+let tab='learn';
+document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>setTab(b.dataset.tab)));
+function setTab(t){
+  if(RADIO.ptt)pttUp();
+  tab=t;stopPlayback();stopWalk();resetKeyer();clearLit();
+  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.tab===t));
+  ['learn','key','text','radio','quiz'].forEach(x=>$('p-'+x).hidden=x!==t);
+  if(t==='radio'){$('radioKeySlot').appendChild($('keyer'));renderRadio();renderLog()}
+  if(t==='text')setTextMode(X.mode==='practice'?'practice':'edit');
+  if(t==='key')$('keySlot').appendChild($('keyer'));
+  if(t==='quiz'){$('quizKeySlot').appendChild($('keyer'));setupQuiz()}
+  if(t==='learn'){$('park').appendChild($('keyer'));showLearn(learnSel,false)}
+  applyHide();
+}
+
+// ---------- learn ----------
+let learnSel='.';
+function showLearn(code,play=true){
+  learnSel=code;const n=BY_CODE[code];
+  $('lLetter').textContent=n.letter;setCode($('lCode'),code);
+  const path=[];for(let i=1;i<=code.length;i++){const p=BY_CODE[code.slice(0,i)];if(p&&!p.digit&&(!p.tr||S.tr))path.push(p.letter)}if(n.digit)path.push(n.letter);
+  $('lCrumbs').textContent=path.join(' → ');
+  if(play)playCode(code,{onDone:()=>lightPath(code,{reveal:true})});else lightPath(code,{reveal:true});
+}
+$('lPlay').addEventListener('click',()=>{stopWalk();showLearn(learnSel)});
+$('lHide').addEventListener('click',()=>{S.hide=!S.hide;persist();applyHide()});
+let walking=false,walkTimer=null;
+function stopWalk(){walking=false;clearTimeout(walkTimer);$('lWalk').textContent=t('walk');$('lWalk').classList.remove('on')}
+$('lWalk').addEventListener('click',()=>{
+  if(walking){stopWalk();stopPlayback();return}
+  walking=true;$('lWalk').textContent=t('stop');$('lWalk').classList.add('on');let i=0;
+  const step=()=>{if(!walking||tab!=='learn')return;const W=walkList();if(i>=W.length){stopWalk();return}
+    const c=BY_LETTER[W[i++]].code;learnSel=c;
+    const n=BY_CODE[c];$('lLetter').textContent=n.letter;setCode($('lCode'),c);
+    const path=[];for(let k=1;k<=c.length;k++){const p=BY_CODE[c.slice(0,k)];if(p&&!p.digit&&(!p.tr||S.tr))path.push(p.letter)}if(n.digit)path.push(n.letter);$('lCrumbs').textContent=path.join(' → ');
+    playCode(c,{onDone:()=>{lightPath(c,{reveal:true});walkTimer=setTimeout(step,650)}})};
+  step();
+});
+
+function onTreeTap(code){
+  ensureAudio();haptic('light');
+  if(tab==='learn'){stopWalk();showLearn(code)}
+  else if(tab==='key'){playCode(code,{onDone:()=>lightPath(code)})}
+  else if(tab==='quiz'&&S.qType==='recv')answerRecv(code);
+}
+
+// ---------- keyer ----------
+const K={code:'',down:null,timer:null,wordTimer:null};
+function resetKeyer(){clearTimeout(K.timer);clearTimeout(K.wordTimer);K.code='';K.down=null;toneOff();$('kCur').textContent='';['bigKey','dotKey','dashKey'].forEach(i=>$(i).classList.remove('down'))}
+function threshold(){return Math.max(unit()*2,160)}
+function keyDown(el){ensureAudio();stopPlayback();clearTimeout(K.timer);clearTimeout(K.wordTimer);K.down=performance.now();el.classList.add('down');haptic('light');
+  if(ctx){K.onAt=Math.max(ctx.currentTime,keyEnd);rampOn(K.onAt)}
+  if(txLive())radioSend({e:'d',t:ctx?perfOf(K.onAt):performance.now()})}
+function keyUp(el){if(K.down==null)return;const d=performance.now()-K.down;K.down=null;el.classList.remove('down');
+  const sym=d<threshold()?'.':'-';
+  if(ctx){const off=Math.max(ctx.currentTime,K.onAt+0.02);rampOff(off);keyEnd=off+0.005+minGap();if(txLive())radioSend({e:'u',t:perfOf(off),s:sym})}
+  else if(txLive())radioSend({e:'u',t:performance.now(),s:sym});
+  addSymbol(sym)}
+function addSymbol(s){
+  K.code+=s;
+  if(!active(K.code)){let c=K.code;while(c&&!active(c))c=c.slice(0,-1);lightPath(c)}
+  else lightPath(K.code);
+  updateCur();clearTimeout(K.timer);K.timer=setTimeout(commitLetter,(tab==='radio'?3*unit():S.gap)+(K.extra||0)); // radio: standard 3-unit letter gapK.extra=0;
+}
+function updateCur(){
+  const ok=validPrefix(K.code);
+  if(tab==='key'){setCode($('kCur'),K.code);$('kCur').style.color=ok||!K.code?'':'var(--bad)'}
+  if(tab==='radio'){setCode($('rCur'),K.code);$('rCur').style.color=ok||!K.code?'':'var(--bad)'}
+  if(tab==='text'&&X.mode==='practice'){const q=$('tCode');if(K.code){setCode(q,K.code);q.className='code'+(ok?'':' bad')}else textPrompt()}
+  if(tab==='quiz'&&S.qType!=='recv'){const q=$('qCode');q.className='code'+(K.code&&!ok?' bad':'');if(K.code)setCode(q,K.code);else{q.textContent=t('keyLetter');q.className='code empty'}}
+}
+function commitLetter(){
+  const code=K.code;K.code='';if(!code)return;
+  const ch=charOf(code);
+  if(tab==='key'){
+    const span=$('kOut').firstChild;span.textContent+=ch||'?';$('kCur').textContent='';
+    if(active(code))lightPath(code,{reveal:true});
+    K.wordTimer=setTimeout(()=>{if(span.textContent&&!span.textContent.endsWith(' '))span.textContent+=' '},Math.max(S.gap*2.2,1400));
+  }else if(tab==='quiz')answerSend(code);
+  else if(tab==='text'&&X.mode==='practice')answerText(code);
+  else if(tab==='radio'){
+    logAdd('tx',ch||'?');if(active(code))lightPath(code,{reveal:true});$('rCur').textContent='';
+    if(txLive())radioSend({e:'c',t:performance.now(),ch:ch||'?'});
+    K.wordTimer=setTimeout(()=>{logAdd('tx',' ');if(txLive())radioSend({e:'s',t:performance.now()})},4*unit()); // 3+4 = standard 7-unit word gap
+  }
+}
+// one key
+const big=$('bigKey');
+big.addEventListener('pointerdown',e=>{e.preventDefault();try{big.setPointerCapture(e.pointerId)}catch(_){}keyDown(big)});
+['pointerup','pointercancel'].forEach(ev=>big.addEventListener(ev,()=>keyUp(big)));
+big.addEventListener('contextmenu',e=>e.preventDefault());
+// two keys
+function tapSym(el,s){
+  ensureAudio();stopPlayback();clearTimeout(K.timer);clearTimeout(K.wordTimer);haptic('light');
+  el.classList.add('down');setTimeout(()=>el.classList.remove('down'),120);
+  if(ctx){const u=unit()/1000,now=ctx.currentTime,start=Math.max(now,keyEnd),d=s==='.'?u:3*u;rampOn(start);rampOff(start+d);keyEnd=start+d+0.005+Math.max(u,minGap());K.extra=(keyEnd-now)*1000;
+    if(txLive()){radioSend({e:'d',t:perfOf(start)});radioSend({e:'u',t:perfOf(start+d),s})}}
+  addSymbol(s);
+}
+$('dotKey').addEventListener('pointerdown',e=>{e.preventDefault();tapSym($('dotKey'),'.')});
+$('dashKey').addEventListener('pointerdown',e=>{e.preventDefault();tapSym($('dashKey'),'-')});
+// mouse keying (Settings): left click = dot, right click = dash, on the keyer area.
+// In the Mac app clicks arrive as touches and right clicks never reach the page,
+// so the native shell calls window.__mouseKey('-',x,y) for a right click.
+const keyerEl=$('keyer');
+const FINE=matchMedia('(hover:hover) and (pointer:fine)').matches;
+let lastRight=0;
+function inKeyer(x,y){const r=keyerEl.getBoundingClientRect();return r.width>0&&x>=r.left&&x<=r.right&&y>=r.top&&y<=r.bottom&&!$('park').contains(keyerEl)&&$('sheet').hidden}
+function mouseSym(s){tapSym(S.twoKeys?$(s==='.'?'dotKey':'dashKey'):big,s)}
+window.__mouseKey=(s,x,y)=>{if(!S.mouseKeys)return false;if(s==='-'&&performance.now()-lastRight<400)return true;if(x!=null&&!inKeyer(x,y))return false;mouseSym(s);return true};
+keyerEl.addEventListener('pointerdown',e=>{
+  if(!S.mouseKeys||(e.button!==0&&e.button!==2))return;
+  e.preventDefault();e.stopPropagation();
+  if(e.button===2)lastRight=performance.now();
+  mouseSym(e.button===0?'.':'-');
+},true);
+keyerEl.addEventListener('contextmenu',e=>e.preventDefault());
+keyerEl.addEventListener('mousedown',e=>{if(e.button===2)e.preventDefault()});
+function applyMouseHint(){big.querySelector('small').dataset.t=S.mouseKeys?'keyHintMouse':'keyHint';big.querySelector('small').textContent=t(big.querySelector('small').dataset.t)}
+function applyKeyMode(){
+  big.hidden=S.twoKeys;$('twoKeys').hidden=!S.twoKeys;
+  document.querySelectorAll('#kMode button').forEach(b=>b.classList.toggle('on',(b.dataset.v==='2')===S.twoKeys));
+}
+document.querySelectorAll('#kMode button').forEach(b=>b.addEventListener('click',()=>{S.twoKeys=b.dataset.v==='2';persist();applyKeyMode()}));
+$('kClear').addEventListener('click',()=>{$('kOut').firstChild.textContent='';resetKeyer();clearLit()});
+$('kSpace').addEventListener('click',()=>{const s=$('kOut').firstChild;if(s.textContent&&!s.textContent.endsWith(' '))s.textContent+=' '});
+
+// ---------- quiz ----------
+let Q={target:null,busy:false,streak:0,last:null};
+function pool(){if(S.level===5)return NUMS.slice();return TREE.filter(t=>(t[6]?S.tr:true)&&t[0].length<=(S.level>=4?9:S.level)).map(t=>t[1])}
+function stat(l){return S.stats[l]||(S.stats[l]={n:0,ok:0})}
+function pick(){
+  const p=pool().filter(l=>l!==Q.last||pool().length<2);
+  const w=p.map(l=>{const s=S.stats[l];if(!s||s.n<3)return 3;return 1+4*(1-s.ok/s.n)});
+  let r=Math.random()*w.reduce((a,b)=>a+b,0);for(let i=0;i<p.length;i++){r-=w[i];if(r<=0)return p[i]}return p[p.length-1];
+}
+function setupQuiz(){
+  document.querySelectorAll('#qType button').forEach(b=>b.classList.toggle('on',b.dataset.v===S.qType));
+  document.querySelectorAll('#qLevel button').forEach(b=>b.classList.toggle('on',+b.dataset.v===S.level));
+  const send=S.qType!=='recv';const wordy=S.qType==='word'||S.qType==='qcode';$('qLetter').hidden=wordy;$('qWord').hidden=!wordy;$('qLevel').style.visibility=S.qType==='qcode'?'hidden':'';$('qMean').hidden=S.qType!=='qcode';$('qHeat').hidden=wordy;
+  $('quizKeySlot').hidden=!send;$('recvCtl').hidden=send;
+  applyHide();renderHeat();nextQ();
+}
+document.querySelectorAll('#qType button').forEach(b=>b.addEventListener('click',()=>{S.qType=b.dataset.v;persist();resetKeyer();stopPlayback();setupQuiz()}));
+document.querySelectorAll('#qLevel button').forEach(b=>b.addEventListener('click',()=>{S.level=+b.dataset.v;persist();resetKeyer();stopPlayback();setupQuiz()}));
+function renderHeat(){
+  const h=$('qHeat');h.innerHTML='';
+  pool().forEach(l=>{const s=S.stats[l];const i=document.createElement('i');i.textContent=l;
+    if(!s||!s.n){i.style.background='#ffffff14';i.style.color='var(--muted)'}
+    else{const a=s.ok/s.n;i.style.background=a>.85?'var(--lit)':a>.6?'var(--brass)':'var(--bad)'}
+    h.appendChild(i)});
+  let n=0,ok=0;pool().forEach(l=>{const s=S.stats[l];if(s){n+=s.n;ok+=s.ok}});
+  $('qAcc').textContent=n?Math.round(100*ok/n)+'%':'–';$('qStreak').textContent=Q.streak;
+}
+function record(l,good){const s=stat(l);s.n++;if(good)s.ok++;Q.streak=good?Q.streak+1:0;persist();renderHeat()}
+function nextQ(){
+  if(tab!=='quiz')return;
+  Q.busy=false;Q.target=pick();Q.last=Q.target;clearLit();
+  const L=$('qLetter');
+  if(S.qType==='word'||S.qType==='qcode'){Q.word=pickWord();Q.wi=0;renderWord();$('qCode').className='code empty';$('qCode').textContent=S.qType==='qcode'?t('keyQ'):t('keyWord');
+    if(S.qType==='qcode')$('qMean').textContent=Q.mean[S.lang==='tr'?1:0];return}
+  if(S.qType==='send'){L.textContent=Q.target;$('qCode').className='code empty';$('qCode').textContent=t('keyLetter')}
+  else{L.textContent='?';showRecvCode(false);setTimeout(()=>{if(tab==='quiz'&&!Q.busy)playCode(BY_LETTER[Q.target].code,{animate:false})},250)}
+}
+function flash(el,cls){el.classList.remove('flash-ok','flash-bad');void el.offsetWidth;el.classList.add(cls)}
+function answerSend(code){
+  if(S.qType==='word'||S.qType==='qcode')return answerWord(code);
+  if(Q.busy||S.qType!=='send')return;Q.busy=true;
+  const want=BY_LETTER[Q.target].code,good=code===want;record(Q.target,good);
+  const q=$('qCode');
+  if(good){haptic('success');lightPath(want,{reveal:true});q.className='code';setCode(q,want,'✓');flash($('qLetter'),'flash-ok');setTimeout(nextQ,800)}
+  else{haptic('error');flash($('qLetter'),'flash-bad');q.className='code bad';const n=BY_CODE[code];
+    setCode(q,code,n?'= '+n.letter:'?');
+    setTimeout(()=>{q.className='code';setCode(q,want);playCode(want,{onDone:()=>{lightPath(want,{reveal:true});setTimeout(nextQ,1100)}})},700)}
+}
+// ---------- Turkish words ----------
+const WORDS='EV SU AT EL AY İŞ AŞK GÖZ YOL KUŞ SÜT ÇAY DAĞ GÜL BAL KAR GÜN YIL SES SÖZ TUZ KÖY GÖK SOS OKUL KALEM KİTAP MASA KAPI ELMA ARMUT ÇİÇEK AĞAÇ DENİZ GÜNEŞ YILDIZ BULUT YAĞMUR KÖPEK KEDİ BALIK ŞEHİR ÇOCUK ANNE BABA KARDEŞ ARKADAŞ SEVGİ BARIŞ IŞIK DÜNYA HAYAT ZAMAN SAAT GECE SABAH AKŞAM ÖĞLE ÇARŞI PAZAR EKMEK PEYNİR ŞEKER ÇORBA SİMİT KAHVE ÇANTA GÖMLEK ŞAPKA TELEFON MERHABA SELAM TAMAM EVET HAYIR YARDIM İMDAT TEŞEKKÜR GÜZEL BÜYÜK KÜÇÜK HIZLI YAVAŞ SICAK SOĞUK YEŞİL KIRMIZI MAVİ SARI BEYAZ SİYAH TÜRKİYE İSTANBUL ANKARA İZMİR BURSA KONYA ÜZÜM KİRAZ ÇİLEK İNCİR ŞİŞE ÖĞRETMEN ÖĞRENCİ MÜZİK ŞARKI OYUN DÜŞÜN ÇALIŞ KONUŞ ÜMİT DOST CESUR ÖZGÜR RÜZGAR TOPRAK ATEŞ'.split(' ');
+function pickWord(){
+  if(S.qType==='qcode'){const it=qItems();let x;do{x=it[Math.floor(Math.random()*it.length)]}while(x[0]===Q.lastWord);Q.lastWord=x[0];Q.mean=x[1];return x[0]}
+  const max=[0,3,4,6,99,99][S.level];
+  if(S.lang!=='tr'){const max=[0,3,4,6,99,99][S.level];let l=WORDS_EN.filter(w=>w.length<=max);let w;do{w=l[Math.floor(Math.random()*l.length)]}while(w===Q.lastWord&&l.length>1);Q.lastWord=w;return w}
+  let list=WORDS.filter(w=>w.length<=max&&(S.tr||!/[ÇĞÖŞÜ]/.test(w)));
+  if(!list.length)list=WORDS.filter(w=>S.tr||!/[ÇĞÖŞÜ]/.test(w));
+  let w;do{w=list[Math.floor(Math.random()*list.length)]}while(w===Q.lastWord&&list.length>1);
+  Q.lastWord=w;return w;
+}
+const QC={
+  QTH:['What is your location? / My location is …','Konumunuz nedir? / Konumum …'],QRZ:['Who is calling me?','Beni kim çağırıyor?'],
+  QSL:['I confirm receipt','Alındı, onaylıyorum'],QSO:['A contact, a conversation','Bağlantı, görüşme'],
+  QRM:['Man-made interference','İnsan kaynaklı parazit var'],QRN:['Static, atmospheric noise','Atmosferik parazit var'],
+  QRT:['I am closing down','Yayını kapatıyorum'],QRV:['I am ready','Hazırım'],QRX:['Please wait','Bekleyin'],
+  QSY:['Change frequency','Frekans değiştirin'],QRP:['Reduce power / low power','Gücü düşürün / düşük güç'],QRO:['Increase power','Gücü artırın'],
+  QRS:['Send more slowly','Daha yavaş gönderin'],QRQ:['Send faster','Daha hızlı gönderin'],QSB:['Your signal is fading','Sinyaliniz zayıflıyor (fading)'],
+  QRL:['Is this frequency in use?','Frekans meşgul mü?'],QSK:['I can hear you between my signals (break-in)','Araya girebilirim (break-in)'],
+  QTR:['What is the time? / The time is …','Saat kaç? / Saat …'],QRK:['How readable are my signals?','Sinyal anlaşılırlığı nasıl?'],
+  QRU:['Have you anything for me? / I have nothing','Bana bir şey var mı? / Yok'],QSP:['Will you relay a message?','Mesajı iletir misiniz?'],
+  QTC:['I have a message for you','Gönderecek mesajım var'],QRG:['What is my exact frequency?','Tam frekansım nedir?'],QSA:['What is my signal strength?','Sinyal gücüm nedir?'],
+  CQ:['General call to any station','Genel çağrı: herkes'],DE:['From (this is …)','… tarafından (“bu istasyon”)'],SOS:['Distress, need help','İmdat, acil yardım']
+};
+function myCall(){return (S.call||'').toUpperCase().replace(/[^A-Z0-9]/g,'')}
+function qItems(){
+  const it=Object.keys(QC).map(k=>[k,QC[k]]),c=myCall();
+  if(c){const mine=[[c,['Your call sign','Çağrı kodun']],['DE '+c,['This is '+c,'Burası '+c]],['CQ CQ DE '+c+' K',['Calling any station, go ahead','Genel çağrı, buyurun']],[c+' QTH',['Asking '+c+'’s location','Konum bilgisi']],['TNX 73 DE '+c,['Thanks, best regards','Teşekkürler, en iyi dileklerle']]];
+    it.push(...mine,...mine.slice(0,3));}
+  return it;
+}
+const WORDS_EN='AT IT ME GO NO ON UP WE SO HI OK SOS CAT DOG SUN SEA SKY TEA RED BIG HOT MAP KEY BOX CAR EAR EYE FOX HAT JOB MILK BOOK TREE STAR MOON RAIN SNOW FISH BIRD HOME LOVE HELP CODE WORD TIME FIRE WIND SHIP ROAD BLUE GOLD GREEN WATER RADIO MORSE HELLO WORLD PEACE LIGHT NIGHT HAPPY QUICK TRAIN PLANE APPLE BREAD MUSIC RIVER OCEAN FRIEND SIGNAL ANTENNA LEARN'.split(' ');
+const T={
+ en:{lHint:'Tap any letter on the tree to hear it and watch its path light up. Right of the antenna starts with a dot, left starts with a dash. Circles are dots, bars are dashes.',
+  play:'▶ Play again',walk:'Walk the tree',stop:'■ Stop',hide:'Hide letters',oneKey:'1 key',twoKeys:'· and − keys',space:'Space',clear:'Clear',
+  send:'Send',hear:'Hear',words:'Words',qcodes:'Q codes',streak:'streak',replay:'▶ Replay',showCode:'Show code',showLetters:'Show letters',skip:'Skip',
+  gloss:'Glossary',gSearch:'Search: QRS, slow, 73…',gNone:'Nothing found.',gTip:'<b>New?</b> If the other station is too fast, send <b>QRS</b> (send slower). Also handy: <b>AGN</b> (again), <b>?</b> (repeat / question), <b>PSE</b> (please), <b>TU</b> (thank you). Tap any line to hear it.',gQ:'Q codes',gQp:'Three letters starting with Q. Add ? to make it a question: QRS? = shall I send slower? Without ? it is a request or answer.',gPro:'Prosigns',gProp:'Two letters keyed as one character, no gap between them.',gAb:'Abbreviations',gAbp:'Short forms that save time on the air.',gRst:'Signal report (RST)',gQso:'A typical first contact',gQsop:'TA1XYZ is the other station. K = over, KN = only you reply, SK = end.',key:'KEY',keyHint:'tap for ·   hold for −',keyHintMouse:'left click ·   right click −',mouseOn:'Mouse keys: on',mouseOff:'Mouse keys: off',tLearn:'Learn',tKey:'Key',tQuiz:'Quiz',chMorse:'Morse',chVoice:'Voice',ptt:'PUSH TO TALK',pttHint:'hold and speak',talking:' is talking',quiet:'Channel is quiet. Hold the button to talk.',onAir:'You are on air',otherVoice:'Voice channel: {n} is talking',otherMorse:'Morse channel: {n} is sending',micDenied:'Allow the microphone for Morse Tree in Settings',pps:' pkt/s',rAir:'On air · listening',rHeard:'Heard: ',rBtOff:'Bluetooth is off',rBtDenied:'Allow Bluetooth for Morse Tree in Settings',tRadio:'Radio',hideCopy:'Hide copy',sendText:'Send my text',rOn:'Turn radio on',rOff:'Turn off',rOffSt:'Radio is off',rSearch:'Looking for nearby phones…',rConn:'Connected: ',rNoApp:'Radio works in the iPhone app',tText:'Text',listen:'▶ Listen',practice:'Practice sending',editText:'✎ Edit text',thisLetter:'▶ Letter',practiceShort:'Practice',stopT:'■ Stop',
+  tPlace:'Type something to hear it in Morse, then practice sending it',sendNext:'Send: ',chars:' characters',done2:'✓ Done. Starting again…',done:'Done',speed:'Speed',tone:'Tone',gap:'Pause before a letter ends',
+  lang:'Language',call:'Your call sign (used in Q code practice)',hapOn:'Haptics on',hapOff:'Haptics off',reset:'Reset quiz stats',resetAgain:'Tap again to reset',cleared:'Stats cleared',
+  keyLetter:'Key this letter',keyWord:'Key the word, letter by letter',keyQ:'Key this Q code',tapHeard:'Tap the letter you hear',next:'Next: ',
+  settings:'Settings',helpTitle:'How the tree works',
+  help:'<p>Every letter is a path from the antenna. Read the path and you have the code.</p><p><b>Right side</b> starts with a dot. There, moving right adds a dot and moving down adds a dash.</p><p><b>Left side</b> starts with a dash. There, moving left adds a dash and moving down adds a dot.</p><p>Circles are dots, bars are dashes. Example: R is E → A → R, so · − ·.</p><p>Quiz levels follow the tree depth: level 1 is E T, level 2 adds I A N M, level 3 adds the 3-symbol letters, level 4 is everything, 0-9 drills the numbers. Numbers are 5 symbols: 1–5 start with that many dots, 6–0 start with (number − 5) dashes. Q codes are the short radio phrases hams use, like QTH and QSL.</p><p>Switch to Türkçe in Settings for Turkish words and the letters Ç Ğ Ö Ş Ü.</p><p style="font-size:12px;color:var(--muted)"><b>Open source.</b> Push-to-talk voice uses Codec2 by David Rowe and contributors, licensed under the GNU LGPL 2.1 (github.com/drowe67/codec2). Morse Tree collects no personal data.</p>'},
+ tr:{lHint:'Ağaçta bir harfe dokun: sesini duy, yolunun yandığını gör. Antenin sağı nokta ile, solu çizgi ile başlar. Daireler nokta, çubuklar çizgidir.',
+  play:'▶ Tekrar çal',walk:'Ağacı gez',stop:'■ Durdur',hide:'Harfleri gizle',oneKey:'1 tuş',twoKeys:'· ve − tuşları',space:'Boşluk',clear:'Temizle',
+  send:'Gönder',hear:'Dinle',words:'Kelime',qcodes:'Q kodları',streak:'seri',replay:'▶ Tekrar',showCode:'Kodu göster',showLetters:'Harfleri göster',skip:'Geç',
+  gloss:'Sözlük',gSearch:'Ara: QRS, yavaş, 73…',gNone:'Bulunamadı.',gTip:'<b>Yeni misin?</b> Karşı istasyon çok hızlıysa <b>QRS</b> gönder (daha yavaş gönderin). İşe yarayanlar: <b>AGN</b> (tekrar), <b>?</b> (tekrar / soru), <b>PSE</b> (lütfen), <b>TU</b> (teşekkürler). Dinlemek için satıra dokun.',gQ:'Q kodları',gQp:'Q ile başlayan üç harf. Sonuna ? eklersen soru olur: QRS? = daha yavaş göndereyim mi? ? olmadan istek ya da cevaptır.',gPro:'Prosign’lar',gProp:'İki harf tek karakter gibi, aralarında boşluk olmadan basılır.',gAb:'Kısaltmalar',gAbp:'Yayında zaman kazandıran kısa yazımlar.',gRst:'Sinyal raporu (RST)',gQso:'Örnek bir ilk görüşme',gQsop:'TA1XYZ karşı istasyon. K = sende, KN = sadece sen cevap ver, SK = bitti.',key:'TUŞ',keyHint:'kısa bas ·   uzun bas −',keyHintMouse:'sol tık ·   sağ tık −',mouseOn:'Mouse tuşları: açık',mouseOff:'Mouse tuşları: kapalı',tLearn:'Öğren',tKey:'Tuşla',tQuiz:'Test',chMorse:'Mors',chVoice:'Ses',ptt:'BAS KONUŞ',pttHint:'basılı tut ve konuş',talking:' konuşuyor',quiet:'Kanal sessiz. Konuşmak için tuşa basılı tut.',onAir:'Yayındasın',otherVoice:'Ses kanalında {n} konuşuyor',otherMorse:'Mors kanalında {n} yayında',micDenied:'Ayarlar’dan Morse Tree için mikrofon izni ver',pps:' paket/sn',rAir:'Yayında · dinleniyor',rHeard:'Duyulan: ',rBtOff:'Bluetooth kapalı',rBtDenied:'Ayarlar’dan Morse Tree için Bluetooth izni ver',tRadio:'Telsiz',hideCopy:'Kopyayı gizle',sendText:'Metnimi gönder',rOn:'Telsizi aç',rOff:'Kapat',rOffSt:'Telsiz kapalı',rSearch:'Yakındaki telefonlar aranıyor…',rConn:'Bağlı: ',rNoApp:'Telsiz iPhone uygulamasında çalışır',tText:'Metin',listen:'▶ Dinle',practice:'Göndermeyi çalış',editText:'✎ Metni düzenle',thisLetter:'▶ Harf',practiceShort:'Çalış',stopT:'■ Durdur',
+  tPlace:'Bir şey yaz, Mors olarak dinle, sonra göndermeyi çalış',sendNext:'Gönder: ',chars:' karakter',done2:'✓ Bitti. Baştan başlıyor…',done:'Tamam',speed:'Hız',tone:'Ton',gap:'Harf bitiş beklemesi',
+  lang:'Dil',call:'Çağrı kodun (Q kodu çalışmasında kullanılır)',hapOn:'Titreşim açık',hapOff:'Titreşim kapalı',reset:'İstatistikleri sıfırla',resetAgain:'Sıfırlamak için tekrar dokun',cleared:'Sıfırlandı',
+  keyLetter:'Bu harfi gönder',keyWord:'Kelimeyi harf harf gönder',keyQ:'Bu Q kodunu gönder',tapHeard:'Duyduğun harfe dokun',next:'Sıradaki: ',
+  settings:'Ayarlar',helpTitle:'Ağaç nasıl okunur',
+  help:'<p>Her harf antenden başlayan bir yoldur. Yolu oku, kodu bul.</p><p><b>Sağ taraf</b> nokta ile başlar. Orada sağa gitmek nokta, aşağı gitmek çizgi ekler.</p><p><b>Sol taraf</b> çizgi ile başlar. Orada sola gitmek çizgi, aşağı gitmek nokta ekler.</p><p>Daireler nokta, çubuklar çizgidir. Örnek: R = E → A → R, yani · − ·.</p><p>Türkçe harfler Ç Ğ Ö Ş Ü; C, Q, O, P ve U dallarına bağlıdır. İ ve I ikisi de · · dir.</p><p>Seviyeler ağacın derinliğine göre: 1 = E T, 2 = + I A N M, 3 = 3 sembollü harfler, 4 = hepsi, 0-9 = sayılar. Sayılar 5 semboldür: 1–5 o kadar nokta ile, 6–0 (sayı − 5) kadar çizgi ile başlar. Q kodları amatör telsizcilerin kısa ifadeleridir (QTH, QSL…).</p><p style="font-size:12px;color:var(--muted)"><b>Açık kaynak.</b> Bas-konuş ses özelliği David Rowe ve katkıcılarının Codec2 kütüphanesini kullanır; GNU LGPL 2.1 lisanslıdır (github.com/drowe67/codec2). Morse Tree kişisel veri toplamaz.</p>'}
+};
+const t=k=>(T[S.lang]||T.en)[k];
+function applyLang(){
+  document.querySelectorAll('[data-t]').forEach(e=>e.textContent=t(e.dataset.t));
+  document.querySelectorAll('[data-th]').forEach(e=>e.innerHTML=t(e.dataset.th));
+  document.documentElement.lang=S.lang;
+  $('tInput').placeholder=t('tPlace');if(typeof renderRadio==='function')renderRadio();if(X.mode==='listen')$('tAgain').textContent=t('stopT');
+  if(typeof walking!=='undefined'&&walking)$('lWalk').textContent=t('stop');
+}
+function renderWord(){
+  const L=Q.word.length;$('qWord').style.fontSize=L>12?'18px':L>9?'21px':L>7?'24px':L>5?'28px':'';
+  $('qWord').innerHTML=[...Q.word].map((ch,i)=>ch===' '?'<span style="width:.45em"></span>':'<span class="'+(i<Q.wi?'done':i===Q.wi?'cur':'')+'">'+ch+'</span>').join('');
+}
+function answerWord(code){
+  if(Q.busy)return;
+  const ch=Q.word[Q.wi],want=codeOf(ch),base=ch==='İ'?'I':ch,good=code===want;
+  record(base,good);
+  if(good){
+    haptic('light');lightPath(want,{reveal:true});Q.wi++;while(Q.word[Q.wi]===' ')Q.wi++;renderWord();
+    if(Q.wi>=Q.word.length){Q.busy=true;haptic('success');$('qCode').className='code';$('qCode').textContent='✓ '+Q.word;flash($('qWord'),'flash-ok');setTimeout(nextQ,1100)}
+    else{$('qCode').className='code empty';$('qCode').textContent=t('next')+Q.word[Q.wi]}
+  }else{
+    Q.busy=true;haptic('error');flash($('qWord'),'flash-bad');const n=charOf(code);
+    setCode($('qCode'),code,n?'= '+n:'?');$('qCode').className='code bad';
+    setTimeout(()=>{setCode($('qCode'),want,ch);$('qCode').className='code';playCode(want,{onDone:()=>{lightPath(want,{reveal:true});Q.busy=false}})},700);
+  }
+}
+// ---------- Radio: connectionless Bluetooth broadcast ----------
+// Every phone advertises a tiny BLE packet; every phone in range picks it up. Nobody connects, so listeners are unlimited.
+// Packet payload (14 bytes): [sender id][first event index hi][lo][count][up to 10 event bytes]
+//   ON  1s dddddd  key down for d×20 ms, s=1 dash
+//   OFF 01 dddddd  silence for d×40 ms
+//   CHR 00 cccccc  letter decoded by the sender (index into ALPHA); 62 = sender went idle
+// Each packet repeats the last 10 events, so a missed packet is covered by the next one.
+const ALPHA=' ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789ÇĞÖŞÜ?/=.,',IDLE=62,BUF=0.5;
+const RADIO={talkers:new Set(),ptt:false,pps:null,notice:null,on:false,bt:'',hide:false,log:[],heard:{},st:{},lastTag:null};
+const TX={id:Math.floor(Math.random()*256),idx:0,evs:[IDLE],lastDown:null,lastUp:null,flushT:null,idleT:null};
+const hasNative=()=>!!(window.webkit&&window.webkit.messageHandlers&&window.webkit.messageHandlers.radio);
+function radioCmd(o){try{window.webkit.messageHandlers.radio.postMessage(o)}catch(e){}}
+const txLive=()=>tab==='radio'&&RADIO.on&&S.rmode==='morse';
+const perfOf=at=>performance.now()+(at-ctx.currentTime)*1000;
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+function txPush(b){
+  TX.evs.push(b);TX.idx=(TX.idx+1)&0xffff;if(TX.evs.length>10)TX.evs.shift();
+  if(!TX.flushT)TX.flushT=setTimeout(()=>{TX.flushT=null;txFlush()},20);
+  clearTimeout(TX.idleT);if(b!==IDLE)TX.idleT=setTimeout(()=>{TX.lastUp=null;txPush(IDLE)},3000);
+}
+function txFlush(){
+  const first=(TX.idx-TX.evs.length+1)&0xffff,b=[TX.id,first>>8,first&255,TX.evs.length,...TX.evs];
+  while(b.length<14)b.push(0);
+  radioCmd({cmd:'adv',hex:b.map(x=>x.toString(16).padStart(2,'0')).join('')});
+}
+// keyer hooks call this with sender-clock times; turn them into compact durations
+function radioSend(o){
+  if(!RADIO.on||S.rmode!=='morse')return;
+  if(o.e==='d'){txPush(0x40|(TX.lastUp==null?63:clamp(Math.round((o.t-TX.lastUp)/40),0,63)));TX.lastDown=o.t}
+  else if(o.e==='u'){txPush(0x80|(o.s==='-'?0x40:0)|clamp(Math.round((o.t-TX.lastDown)/20),1,63));TX.lastUp=o.t}
+  else if(o.e==='c'){const i=ALPHA.indexOf(o.ch);txPush(i<0?61:i)}
+  else if(o.e==='s')txPush(0);
+}
+function renderRadio(){
+  const b=$('rPower');b.textContent=t(RADIO.on?'rOff':'rOn');b.classList.toggle('on',RADIO.on);
+  const now=Date.now(),heard=Object.keys(RADIO.heard).filter(n=>now-RADIO.heard[n]<20000);
+  let st=!hasNative()&&!RADIO.on?t('rNoApp'):!RADIO.on?t('rOffSt'):RADIO.bt==='off'?t('rBtOff'):RADIO.bt==='unauthorized'?t('rBtDenied'):
+    RADIO.notice&&now<RADIO.notice.until?RADIO.notice.text:heard.length&&S.rmode==='morse'?t('rHeard')+heard.join(', '):t('rAir');
+  $('rStatus').textContent=st;$('rStatus').style.color=RADIO.on&&heard.length?'var(--lit)':RADIO.on&&(RADIO.bt==='off'||RADIO.bt==='unauthorized')?'var(--bad)':'';
+  $('rHide').classList.toggle('on',RADIO.hide);
+  $('rRate').textContent=RADIO.on&&RADIO.pps!=null?RADIO.pps.toFixed(1)+t('pps'):'';
+  document.querySelectorAll('#rMode button').forEach(x=>x.classList.toggle('on',x.dataset.v===S.rmode));
+  const v=S.rmode==='voice';
+  $('rLogBox').hidden=v;$('rMorseRow').hidden=v;$('radioKeySlot').hidden=v;$('rTalk').hidden=!v;$('pttSlot').hidden=!v;
+  if(v){const who=[...RADIO.talkers];const T=$('rTalk');T.classList.toggle('live',who.length>0&&!RADIO.ptt);T.classList.toggle('me',!!RADIO.ptt);
+    $('rTalkTxt').textContent=RADIO.ptt?t('onAir'):who.length?who.join(', ')+t('talking'):t('quiet')}
+}
+setInterval(()=>{if(RADIO.on&&tab==='radio')renderRadio()},2000);
+function logAdd(who,ch,from){const L=RADIO.log;if(ch===' '&&(!L.length||L[L.length-1].ch===' '))return;
+  const tag=who==='tx'?(myCall()||'ME'):from;
+  if(ch!==' '&&tag&&RADIO.lastTag!==tag){if(L.length&&L[L.length-1].ch!==' ')L.push({who,ch:' '});L.push({who:'tag',ch:tag+'›'});RADIO.lastTag=tag}
+  L.push({who,ch});if(L.length>300)L.splice(0,L.length-300);renderLog()}
+function renderLog(){
+  if(tab!=='radio')return;
+  $('rLog').firstChild.innerHTML=RADIO.log.slice(-60).map(x=>{const h=x.who==='rx'&&RADIO.hide&&x.ch!==' ';return '<span class="'+x.who+(h?' hid':'')+'">'+(h?'_':x.ch.replace(/</g,'&lt;'))+'</span>'}).join('');
+}
+function station(id,name){
+  const k=name+'#'+id;let st=RADIO.st[k];
+  if(!st){st=RADIO.st[k]={name:name||('?'+id),last:null,cursor:0,code:''};
+    if(ctx){st.g=ctx.createGain();st.g.gain.value=0;st.g.connect(ctx.destination);st.o=ctx.createOscillator();st.o.type='sine';
+      st.o.frequency.value=S.tone*(0.74+(id%8)*0.03);st.o.connect(st.g);st.o.start()}}
+  return st;
+}
+const atPerf=a=>performance.now()+(a-ctx.currentTime)*1000;
+function later2(a,fn){setTimeout(fn,Math.max(0,atPerf(a)-performance.now()))}
+// Replays a station with fixed spacing so it is easy to copy:
+//   inside a letter exactly 1 unit, between letters at least 3 units, between words at least 7 units.
+// The unit comes from the sender's own dot length, so each station keeps its speed.
+// Letter and word boundaries are the ones the sender's keyer decided, so letters never run together.
+function rxPlay(st,evs){
+  if(!ctx)return;
+  const now=ctx.currentTime;
+  evs.forEach(b=>{
+    if(b&0x80){
+      const d=(b&63)*0.02,dash=!!(b&0x40),est=dash?d/3:d;
+      st.unit=st.unit?st.unit*0.7+est*0.3:est;st.unit=clamp(st.unit,0.04,0.25);
+      const u=st.unit;let start;
+      if(st.lastEnd==null||st.brk==='idle')start=now+BUF;
+      else if(st.brk==='sym')start=st.lastEnd+u;
+      else start=st.lastEnd+Math.max(st.brk==='word'?7*u:3*u,st.pendOff||0);
+      if(start<now+0.02)start=now+BUF; // fell behind the sender: rebuild the buffer
+      const g=st.g.gain,sym=dash?'-':'.';
+      g.cancelScheduledValues(start);g.setValueAtTime(0,start);g.linearRampToValueAtTime(VOL,start+0.005);g.setValueAtTime(VOL,start+d);g.linearRampToValueAtTime(0,start+d+0.005);
+      later2(start+d,()=>{st.code+=sym;if(tab==='radio'){setCode($('rRxCur'),st.code);if(!K.code)lightPath(st.code)}});
+      st.lastEnd=start+d;st.brk='sym';st.pendOff=0;
+    }
+    else if(b&0x40)st.pendOff=Math.min((b&63)*0.04,1.5);
+    else if(b===IDLE)st.brk='idle';
+    else{
+      const ch=b<ALPHA.length?ALPHA[b]:'?';
+      if(st.brk!=='idle')st.brk=ch===' '?'word':(st.brk==='word'?'word':'letter');
+      const a=st.lastEnd!=null?Math.max(st.lastEnd+0.01,now):now;
+      later2(a,()=>{if(ch!==' '){st.code='';if(tab==='radio')$('rRxCur').textContent=''}
+        logAdd('rx',ch,st.name);if(ch!==' '&&tab==='radio'&&!K.code&&!RADIO.hide){const c=codeOf(ch);if(c&&active(c))lightPath(c,{reveal:true})}});
+    }
+  });
+}
+function rxPacket(hex,name){
+  const b=[];for(let i=0;i+1<hex.length;i+=2)b.push(parseInt(hex.substr(i,2),16));
+  if(b.length<4)return;
+  const id=b[0],first=(b[1]<<8)|b[2],n=Math.min(b[3],10),evs=b.slice(4,4+n),st=station(id,name);
+  RADIO.heard[st.name]=Date.now();
+  let fresh;
+  if(st.last==null){ // first time we hear this station: skip anything from before it last went idle
+    const k=evs.lastIndexOf(IDLE);fresh=evs.slice(k+1);
+  }else fresh=evs.filter((e,i)=>{const d=(first+i-st.last)&0xffff;return d>0&&d<0x8000});
+  st.last=(first+n-1)&0xffff;
+  if(fresh.length)rxPlay(st,fresh);
+}
+function notice(text){RADIO.notice={text,until:Date.now()+3500};renderRadio();setTimeout(renderRadio,3600)}
+window.radioEvent=ev=>{
+  if(ev.type==='talker'){if(ev.on){RADIO.talkers.add(ev.name||'?');haptic('light')}else RADIO.talkers.delete(ev.name||'?');renderRadio();return}
+  if(ev.type==='other'){notice(t(ev.kind==='voice'?'otherVoice':'otherMorse').replace('{n}',ev.name||'?'));return}
+  if(ev.type==='rate'){RADIO.pps=ev.pps;if(tab==='radio')renderRadio();return}
+  if(ev.type==='error'){if(ev.code==='mic'){RADIO.ptt=false;$('ptt').classList.remove('down');notice(t('micDenied'))}return}
+  if(ev.type==='state'){const was=RADIO.on;RADIO.on=!!ev.on;RADIO.bt=ev.bt||'';if(RADIO.on&&!was){TX.evs=[IDLE];TX.lastUp=null;txFlush()}renderRadio()}
+  else if(ev.type==='bc'){const known=RADIO.heard[ev.name];rxPacket(ev.hex,ev.name);if(!known)haptic('success');if(tab==='radio')renderRadio()}
+};
+$('rPower').addEventListener('click',()=>{
+  ensureAudio();
+  if(!hasNative()){renderRadio();return}
+  if(RADIO.on)radioCmd({cmd:'stop'});else radioCmd({cmd:'start',name:myCall()||'MORSE',mode:S.rmode});
+});
+document.querySelectorAll('#rMode button').forEach(x=>x.addEventListener('click',()=>{
+  if(S.rmode===x.dataset.v)return;S.rmode=x.dataset.v;persist();resetKeyer();clearLit();RADIO.talkers.clear();
+  if(RADIO.on)radioCmd({cmd:'mode',mode:S.rmode});renderRadio()}));
+const pttBtn=$('ptt');
+function pttDown(e){e.preventDefault();if(!RADIO.on){notice(t('rOffSt'));return}try{pttBtn.setPointerCapture(e.pointerId)}catch(_){}
+  RADIO.ptt=true;pttBtn.classList.add('down');haptic('light');radioCmd({cmd:'ptt',down:true});renderRadio()}
+function pttUp(){if(!RADIO.ptt)return;RADIO.ptt=false;pttBtn.classList.remove('down');radioCmd({cmd:'ptt',down:false});renderRadio()}
+pttBtn.addEventListener('pointerdown',pttDown);['pointerup','pointercancel'].forEach(ev=>pttBtn.addEventListener(ev,pttUp));
+pttBtn.addEventListener('contextmenu',e=>e.preventDefault());
+$('rHide').addEventListener('click',()=>{RADIO.hide=!RADIO.hide;renderRadio();renderLog()});
+$('rClear').addEventListener('click',()=>{RADIO.log=[];RADIO.lastTag=null;renderLog();clearLit()});
+$('rSendText').addEventListener('click',()=>{
+  const txt=upper(S.text||'').replace(/\s+/g,' ').trim();if(!txt)return;
+  resetKeyer();
+  playText(txt,{
+    onSym:(a,b,sym)=>{if(txLive()&&ctx){radioSend({e:'d',t:perfOf(a)});radioSend({e:'u',t:perfOf(b),s:sym})}},
+    onLetter:(a,ch)=>{if(ctx){const p=perfOf(a);if(txLive())radioSend({e:'c',t:p,ch});setTimeout(()=>logAdd('tx',ch),Math.max(0,p-performance.now()))}},
+    onSpace:a=>{if(ctx){const p=perfOf(a);if(txLive())radioSend({e:'s',t:p});setTimeout(()=>logAdd('tx',' '),Math.max(0,p-performance.now()))}}
+  });
+});
+
+// ---------- Text screen ----------
+const X={mode:'edit',text:'',i:0,busy:false,listenAt:-1};
+const upper=s=>s.toLocaleUpperCase(S.lang==='tr'?'tr-TR':'en-US');
+const playable=ch=>ch!==' '&&ch!=='\n'&&!!codeOf(ch);
+function setTextMode(m){
+  stopPlayback();resetKeyer();clearLit();X.busy=false;
+  if(m!=='edit'){X.text=upper(S.text||'').replace(/\s+/g,' ').trim();if(![...X.text].some(playable)){m='edit'}}
+  X.mode=m;$('tEditBox').hidden=m!=='edit';$('tRunBox').hidden=m==='edit';
+  $('tHint').hidden=m!=='practice';$('tGo').hidden=m==='practice';$('textKeySlot').hidden=m!=='practice';
+  $('tAgain').textContent=t(m==='listen'?'stopT':'listen');
+  if(m==='practice'){$('textKeySlot').appendChild($('keyer'));X.i=0;skipText();renderText();textPrompt()}
+  else $('park').appendChild($('keyer'));
+  if(m==='edit'){$('tInput').value=S.text||'';textStat()}
+  if(m==='listen')listenText();
+}
+function textStat(){const n=[...upper($('tInput').value)].filter(playable).length;$('tStat').textContent=n?n+t('chars'):''}
+function skipText(){while(X.i<X.text.length&&!playable(X.text[X.i]))X.i++}
+function renderText(cur){
+  const at=cur!=null?cur:X.i;
+  $('tView').innerHTML=[...X.text].map((ch,i)=>{const c=ch===' '?'':!playable(ch)?'skip':(X.mode==='practice'&&i<X.i)||(X.mode==='listen'&&i<at)?'done':i===at?'cur':'';
+    return '<span class="'+c+'">'+(ch==='<'?'&lt;':ch==='&'?'&amp;':ch)+'</span>'}).join('');
+  const el=$('tView').querySelector('.cur');if(el)el.scrollIntoView({block:'nearest'});
+}
+function textPrompt(){const q=$('tCode');q.className='code empty';q.textContent=X.i<X.text.length?t('sendNext')+X.text[X.i]:''}
+function listenText(){
+  X.mode='listen';$('tAgain').textContent=t('stopT');$('tCode').className='code';$('tCode').textContent='';renderText(-1);
+  playText(X.text,{onChar:(i,code)=>{renderText(i);setCode($('tCode'),code,X.text[i])},
+    onDone:()=>{renderText(X.text.length);$('tAgain').textContent=t('listen');X.mode='listened'}});
+}
+// plays a whole text with standard spacing: 3 units between letters, 7 between words
+function playText(str,{onChar,onDone,onSym,onLetter,onSpace}={}){
+  ensureAudio();stopPlayback();const tok=playToken;playing=true;
+  const u=unit()/1000,later=(ms,fn)=>playTimers.push(setTimeout(()=>{if(tok===playToken)fn()},Math.max(0,ms)));
+  const now=ctx?ctx.currentTime:0;let tt=now+0.08;
+  if(ctx){gain.gain.cancelScheduledValues(now);gain.gain.setValueAtTime(0,now)}
+  [...str].forEach((ch,i)=>{
+    if(ch===' '){tt+=4*u;onSpace&&onSpace(tt);return}
+    const code=codeOf(ch);if(!code)return;
+    later((tt-now)*1000,()=>{clearLit();onChar&&onChar(i,code)});
+    code.split('').forEach((sym,j)=>{const d=sym==='.'?u:3*u;if(ctx){rampOn(tt);rampOff(tt+d)}onSym&&onSym(tt,tt+d,sym);
+      const pre=code.slice(0,j+1);later((tt-now)*1000,()=>lightStep(pre));tt+=d+u});
+    onLetter&&onLetter(tt,ch);tt+=2*u;
+  });
+  later((tt-now)*1000,()=>{playing=false;onDone&&onDone()});
+}
+function answerText(code){
+  if(X.busy||X.i>=X.text.length)return;
+  const ch=X.text[X.i],want=codeOf(ch);
+  if(code===want){
+    haptic('light');lightPath(want,{reveal:true});X.i++;skipText();renderText();
+    if(X.i>=X.text.length){X.busy=true;haptic('success');$('tCode').className='code';$('tCode').textContent=t('done2');
+      setTimeout(()=>{if(X.mode!=='practice')return;X.i=0;skipText();X.busy=false;renderText();textPrompt()},1800)}
+    else textPrompt();
+  }else{
+    X.busy=true;haptic('error');const n=charOf(code);setCode($('tCode'),code,n?'= '+n:'?');$('tCode').className='code bad';
+    setTimeout(()=>{if(X.mode!=='practice')return;setCode($('tCode'),want,ch);$('tCode').className='code';
+      playCode(want,{onDone:()=>{lightPath(want,{reveal:true});X.busy=false}})},700);
+  }
+}
+$('tInput').addEventListener('input',e=>{S.text=e.target.value;persist();textStat()});
+$('tInput').addEventListener('focus',()=>document.body.classList.add('typing'));
+$('tInput').addEventListener('blur',()=>document.body.classList.remove('typing'));
+$('tListen').addEventListener('click',()=>{$('tInput').blur();setTextMode('listen')});
+$('tPractice').addEventListener('click',()=>{$('tInput').blur();setTextMode('practice')});
+$('tBack').addEventListener('click',()=>{X.resume=null;setTextMode('edit')});
+$('tGo').addEventListener('click',()=>{X.resume=null;setTextMode('practice')});
+$('tAgain').addEventListener('click',()=>{
+  if(X.mode==='listen'){stopPlayback();clearLit();const back=X.resume;X.resume=null;X.mode=back||'listened';$('tAgain').textContent=t('listen');if(back){renderText();textPrompt()}return}
+  if(X.mode==='practice'){resetKeyer();X.resume='practice';X.mode='listen';$('tAgain').textContent=t('stopT');
+    playText(X.text,{onChar:(i,code)=>renderText(i),onDone:()=>{X.mode=X.resume||'listened';X.resume=null;$('tAgain').textContent=t('listen');renderText();clearLit();textPrompt()}});return}
+  listenText();
+});
+$('tHint').addEventListener('click',()=>{if(X.busy||X.i>=X.text.length)return;const w=codeOf(X.text[X.i]);setCode($('tCode'),w,X.text[X.i]);$('tCode').className='code';playCode(w,{onDone:()=>lightPath(w,{reveal:true})})});
+let recvShowCode=false;
+function showRecvCode(show){recvShowCode=show;const q=$('qCode');$('qShowCode').classList.toggle('on',show);
+  if(S.qType!=='recv')return;
+  q.className=show?'code':'code empty';if(show)setCode(q,BY_LETTER[Q.target].code);else q.textContent=t('tapHeard')}
+function answerRecv(code){
+  if(Q.busy)return;Q.busy=true;stopPlayback();
+  const want=BY_LETTER[Q.target].code,good=code===want;record(Q.target,good);
+  $('qLetter').textContent=Q.target;$('qCode').className='code';setCode($('qCode'),want);
+  if(good){haptic('success');lightPath(want,{reveal:true});flash($('qLetter'),'flash-ok');setTimeout(nextQ,900)}
+  else{haptic('error');flash($('qLetter'),'flash-bad');clearLit();els[code].node.classList.add('bad');els[code].lbl.classList.add('reveal');
+    setTimeout(()=>playCode(want,{onDone:()=>{lightPath(want,{reveal:true});els[code].node.classList.add('bad');els[code].lbl.classList.add('reveal');setTimeout(nextQ,1200)}}),500)}
+}
+$('qReplay').addEventListener('click',()=>{if(!Q.busy)playCode(BY_LETTER[Q.target].code,{animate:false})});
+$('qShowCode').addEventListener('click',()=>{if(!Q.busy)showRecvCode(!recvShowCode)});
+$('qShowLetters').addEventListener('click',()=>{S.showLetters=!S.showLetters;persist();applyHide()});
+$('qSkip').addEventListener('click',()=>{stopPlayback();Q.streak=0;nextQ();renderHeat()});
+
+// ---------- settings / help ----------
+// ---------- glossary ----------
+const QORDER=['QRS','QRQ','QTH','QSL','QRZ','QSO','QRL','QRM','QRN','QSB','QRK','QSA','QRT','QRV','QRX','QSY','QRP','QRO','QRU','QSP','QTC','QRG','QTR','QSK'];
+const PROSIGNS=[ // [name, code, en, tr]
+ ['AR','.-.-.','End of message','Mesaj sonu'],['SK','...-.-','End of contact (goodbye)','Görüşme sonu (hoşça kal)'],
+ ['BT','-...-','Break / new paragraph (also written =)','Ara / yeni paragraf (= diye de yazılır)'],['KN','-.--.','Over, only the station I am working may reply','Sende, sadece görüştüğüm istasyon cevap versin'],
+ ['AS','.-...','Wait','Bekle'],['HH','........','Error, I made a mistake (8 dots)','Hata yaptım (8 nokta)'],
+ ['VE','...-.','Understood','Anlaşıldı'],['CT','-.-.-','Start of transmission','Yayın başlangıcı'],['SOS','...---...','Distress, need help','İmdat, acil yardım']];
+const ABBR=[ // [text, en, tr]
+ ['K','Over, go ahead','Sende, devam et'],['R','Received, roger','Alındı'],['DE','From / this is','… tarafından / bu istasyon'],['CQ','General call to anyone','Herkese genel çağrı'],
+ ['?','Repeat / question','Tekrar / soru'],['AGN','Again','Tekrar'],['PSE','Please','Lütfen'],['TU','Thank you','Teşekkürler'],['TNX','Thanks','Teşekkürler'],
+ ['73','Best regards','En iyi dileklerimle'],['88','Love and kisses','Sevgiler'],['GL','Good luck','İyi şanslar'],['CUL','See you later','Görüşmek üzere'],
+ ['GM','Good morning','Günaydın'],['GA','Good afternoon','Tünaydın'],['GE','Good evening','İyi akşamlar'],['GN','Good night','İyi geceler'],
+ ['FB','Fine business, excellent','Harika, çok iyi'],['OM','Old man, a male operator','Erkek operatör'],['YL','Young lady, a female operator','Kadın operatör'],
+ ['OP','Operator, my name','Operatör, adım'],['UR','Your / you are','Senin / sen'],['HR','Here','Burada'],['ES','And','Ve'],['FER','For','İçin'],
+ ['HW','How (how copy?)','Nasıl (nasıl alıyorsun?)'],['CFM','Confirm','Onaylıyorum'],['RPT','Repeat / report','Tekrar / rapor'],['SRI','Sorry','Pardon'],
+ ['BK','Break, back to you quickly','Araya gir, hızlıca sana'],['NR','Number','Numara'],['WX','Weather','Hava durumu'],['RIG','Radio equipment','Telsiz cihazı'],
+ ['ANT','Antenna','Anten'],['PWR','Power','Güç'],['RST','Signal report','Sinyal raporu'],['5NN','599, fast form (N = 9)','599’un kısa hali (N = 9)'],
+ ['DX','Long distance station','Uzak mesafe istasyonu'],['ABT','About','Hakkında / yaklaşık'],['DR','Dear','Sevgili'],['HPE','Hope','Umarım']];
+const RST=[ // [text, en, tr]
+ ['R 1–5','Readability: 1 unreadable … 5 perfectly readable','Anlaşılırlık: 1 anlaşılmıyor … 5 tamamen anlaşılır'],
+ ['S 1–9','Strength: 1 barely audible … 9 very strong','Güç: 1 zor duyuluyor … 9 çok güçlü'],
+ ['T 1–9','Tone: 1 rough … 9 pure clean tone','Ton: 1 bozuk … 9 temiz ton'],
+ ['599','Perfect report, often sent as 5NN','Kusursuz rapor, çoğu zaman 5NN gönderilir'],
+ ['579','Perfectly readable, fairly strong, clean tone','Tam anlaşılır, oldukça güçlü, temiz ton']];
+function qsoLines(){const me=myCall()||'TA2ABC',o='TA1XYZ',L=S.lang==='tr'?1:0;return[
+ ['CQ CQ CQ DE '+me+' '+me+' K',['Calling anyone, this is you, over.','Herkese çağrı, bu sensin, sende.'][L]],
+ [me+' DE '+o+' '+o+' K',['TA1XYZ answers you.','TA1XYZ sana cevap veriyor.'][L]],
+ [o+' DE '+me+' GM TNX FER CALL = UR RST 579 = QTH IZMIR = HW? '+o+' DE '+me+' KN',['You greet, give a report and your location, ask how they copy.','Selam verirsin, rapor ve konum verirsin, nasıl aldığını sorarsın.'][L]],
+ [me+' DE '+o+' R TNX = UR RST 599 = OP ALI = PSE QRS = '+me+' DE '+o+' KN',['They ask you to send slower (QRS).','Daha yavaş göndermeni istiyor (QRS).'][L]],
+ [o+' DE '+me+' R TNX ALI FB = 73 ES GL '+o+' DE '+me+' SK',['Thanks, best regards, good luck, end of contact.','Teşekkürler, iyi dilekler, iyi şanslar, görüşme sonu.'][L]],
+ [me+' DE '+o+' 73 TU SK  E E',['They say goodbye. Two short dits (E E) = "bye".','Vedalaşıyor. İki kısa nokta (E E) = "bay bay".'][L]]]}
+const glyphText=str=>[...str].map(ch=>ch===' '?'  ':(codeOf(ch)?glyph(codeOf(ch)):'')).filter(x=>x!=='').join(' ');
+const esc=x=>x.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function gRow(code,mean,sym,play,hot){return '<button class="g-row'+(hot?' hot':'')+'" data-play="'+esc(play)+'"><span class="c">'+esc(code)+'</span><span class="m">'+esc(mean)+'</span><span class="s">'+esc(sym)+'</span></button>'}
+function renderGloss(){
+  const L=S.lang==='tr'?1:0,qq=upper($('gSearch').value.trim()),f=(...a)=>!qq||a.some(x=>upper(x).includes(qq));
+  let h='';
+  if(!qq)h+='<div class="g-tip">'+t('gTip')+'</div>';
+  const sec=(title,p,rows)=>{if(rows.length)h+='<div class="g-sec"><h3>'+title+'</h3>'+(p&&!qq?'<p>'+p+'</p>':'')+rows.join('')+'</div>'};
+  sec(t('gQ'),t('gQp'),QORDER.filter(k=>QC[k]&&f(k,QC[k][0],QC[k][1])).map(k=>gRow(k,QC[k][L],glyphText(k),'T:'+k,k==='QRS')));
+  sec(t('gPro'),t('gProp'),PROSIGNS.filter(x=>f(x[0],x[2],x[3])).map(x=>gRow(x[0],x[2+L],glyph(x[1]),'C:'+x[1])));
+  sec(t('gAb'),t('gAbp'),ABBR.filter(x=>f(x[0],x[1],x[2])).map(x=>gRow(x[0],x[1+L],glyphText(x[0]),'T:'+x[0],['AGN','?','PSE','TU'].includes(x[0]))));
+  sec(t('gRst'),'',RST.filter(x=>f(x[0],x[1],x[2])).map(x=>gRow(x[0],x[1+L],/^\d+$/.test(x[0])?glyphText(x[0]):'',/^\d+$/.test(x[0])?'T:'+x[0]:'',false)));
+  const q=qsoLines().filter(x=>f(x[0],x[1]));
+  if(q.length)h+='<div class="g-sec"><h3>'+t('gQso')+'</h3>'+(qq?'':'<p>'+t('gQsop')+'</p>')+q.map(x=>'<div class="g-qso">'+esc(x[0])+'<small>'+esc(x[1])+'</small></div>').join('')+'</div>';
+  $('gList').innerHTML=h||'<div class="g-empty">'+t('gNone')+'</div>';
+}
+$('gList').addEventListener('click',e=>{const b=e.target.closest('.g-row');if(!b||!b.dataset.play)return;const p=b.dataset.play,v=p.slice(2);
+  if(p[0]==='C')playCode(v,{animate:false});else playText(v)});
+$('gSearch').addEventListener('input',renderGloss);
+function openSheet(which){if(which===true)which='help';if(which===false)which='set';
+  $('sheetTitle').textContent=t(which==='help'?'helpTitle':which==='gloss'?'gloss':'settings');
+  $('setBody').hidden=which!=='set';$('helpBody').hidden=which!=='help';$('glossBody').hidden=which!=='gloss';
+  if(which==='gloss'){$('gSearch').placeholder=t('gSearch');renderGloss();$('glossBody').scrollTop=0}
+  $('sheet').hidden=false}
+$('glossBtn').addEventListener('click',()=>openSheet('gloss'));
+$('setBtn').addEventListener('click',()=>openSheet(false));
+$('helpBtn').addEventListener('click',()=>openSheet(true));
+$('sheetClose').addEventListener('click',()=>$('sheet').hidden=true);
+$('sheet').addEventListener('click',e=>{if(e.target===$('sheet'))$('sheet').hidden=true});
+function syncSettings(){
+  if(document.activeElement!==$('call'))$('call').value=S.call||'';
+  $('wpm').value=S.wpm;$('wpmV').textContent=S.wpm+' wpm';
+  $('tone').value=S.tone;$('toneV').textContent=S.tone+' Hz';
+  $('gap').value=S.gap;$('gapV').textContent=(S.gap/1000).toFixed(2).replace(/0$/,'')+' s';
+  $('card').classList.toggle('no-tr',!S.tr);
+  document.querySelectorAll('#langSeg button').forEach(b=>b.classList.toggle('on',b.dataset.v===S.lang));
+  $('hapt').classList.toggle('on',S.haptics);$('hapt').textContent=t(S.haptics?'hapOn':'hapOff');$('mouseK').classList.toggle('on',!!S.mouseKeys);$('mouseK').textContent=t(S.mouseKeys?'mouseOn':'mouseOff');applyMouseHint();
+  if(osc)osc.frequency.value=S.tone;if(rxOsc)rxOsc.frequency.value=S.tone*0.82;
+}
+$('call').addEventListener('input',e=>{S.call=e.target.value.toUpperCase();persist()});
+$('wpm').addEventListener('input',e=>{S.wpm=+e.target.value;syncSettings();persist()});
+$('tone').addEventListener('input',e=>{S.tone=+e.target.value;syncSettings();persist()});
+$('tone').addEventListener('change',()=>{ensureAudio();playCode('.',{animate:false})});
+$('gap').addEventListener('input',e=>{S.gap=+e.target.value;syncSettings();persist()});
+document.querySelectorAll('#langSeg button').forEach(b=>b.addEventListener('click',()=>{S.lang=b.dataset.v;S.tr=S.lang==='tr';applyLang();syncSettings();persist();if(tab==='quiz')setupQuiz();if(tab==='learn')stopWalk()}));
+$('mouseK').addEventListener('click',()=>{S.mouseKeys=!S.mouseKeys;syncSettings();persist()});
+$('hapt').addEventListener('click',()=>{S.haptics=!S.haptics;syncSettings();persist();haptic('light')});
+let resetArmed=false;
+$('resetStats').addEventListener('click',()=>{
+  if(!resetArmed){resetArmed=true;$('resetStats').textContent=t('resetAgain');setTimeout(()=>{resetArmed=false;$('resetStats').textContent=t('reset')},2500);return}
+  S.stats={};Q.streak=0;persist();renderHeat();resetArmed=false;$('resetStats').textContent=t('cleared')});
+
+// unlock audio on the first touch anywhere (iOS needs a gesture)
+document.addEventListener('pointerdown',ensureAudio,{once:true,capture:true});
+
+if(S.mouseKeys==null)S.mouseKeys=FINE||!!window.__CATALYST;
+applyLang();syncSettings();applyKeyMode();setTab('learn');
+// App Store screenshot scenes (only when the app is launched with -shot <scene>)
+if(window.__SHOT){const sc=window.__SHOT;S.lang='en';S.tr=false;S.hide=false;applyLang();
+  setTimeout(()=>{
+    if(sc==='learn'){setTab('learn');showLearn('.-.',false);lightPath('.-.',{reveal:true})}
+    if(sc==='key'){setTab('key');$('kOut').firstChild.textContent='CQ CQ DE TA2SYW ';lightPath('-.-',{reveal:true});setCode($('kCur'),'-.-')}
+    if(sc==='quiz'){S.qType='send';S.level=3;setTab('quiz')}
+    if(sc==='gloss'){setTab('learn');openSheet('gloss')}
+    if(sc==='text'){S.text='CQ CQ DE TA2SYW K';setTab('text')}
+    if(sc==='radio'){setTab('radio')}
+  },300)}
+</script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+build/
+DerivedData/
+xcuserdata/
+*.xcuserstate
+.DS_Store
+Vendor/codec2-src/
+AppStore/screenshots/
