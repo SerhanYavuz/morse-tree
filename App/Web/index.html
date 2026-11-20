@@ -176,7 +176,15 @@ nav button.on{color:var(--brass)}
 .field label b{color:var(--ink);font-variant-numeric:tabular-nums}
 input[type=range]{width:100%;accent-color:var(--brass)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
-@media (max-height:700px){.panel{height:236px}.big-letter{font-size:44px}}
+/* QSO: reply and transcript take full rows, the tree gives up some height */
+#p-quiz.qso{height:330px}
+#p-quiz.qso .prompt{flex-wrap:wrap;align-items:flex-start;gap:6px 10px;min-height:0}
+#p-quiz.qso .prompt>div:nth-child(3){flex:1 1 100%}
+#p-quiz.qso #qWord{flex:1 1 100%;flex-wrap:wrap;row-gap:4px}
+#p-quiz.qso .score{display:none}
+#qsoBox .chip{height:28px;padding:0 11px;font-size:12px}
+#qsoBox .row{flex-wrap:wrap}
+@media (max-height:700px){.panel{height:236px}.big-letter{font-size:44px}#p-quiz.qso{height:300px}}
 </style>
 </head>
 <body>
@@ -601,7 +609,7 @@ function pick(){
 function setupQuiz(){
   document.querySelectorAll('#qType button').forEach(b=>b.classList.toggle('on',b.dataset.v===S.qType));
   document.querySelectorAll('#qLevel button').forEach(b=>b.classList.toggle('on',+b.dataset.v===S.level));
-  const send=S.qType!=='recv';const wordy=S.qType==='word'||S.qType==='qcode'||S.qType==='qso';$('qLetter').hidden=wordy;$('qWord').hidden=!wordy;$('qLevel').style.visibility=S.qType==='qcode'||S.qType==='qso'||S.pro?'hidden':'';$('qMean').hidden=S.qType!=='qcode';$('qHeat').hidden=wordy;$('qsoBox').hidden=S.qType!=='qso';
+  const send=S.qType!=='recv';const wordy=S.qType==='word'||S.qType==='qcode'||S.qType==='qso';$('qLetter').hidden=wordy;$('qWord').hidden=!wordy;$('qLevel').style.visibility=S.qType==='qcode'||S.qType==='qso'||S.pro?'hidden':'';$('qMean').hidden=S.qType!=='qcode';$('qHeat').hidden=wordy;$('qsoBox').hidden=S.qType!=='qso';$('p-quiz').classList.toggle('qso',S.qType==='qso');
   $('qPro').classList.toggle('on',!!S.pro);Q.proStart=S.pro?Date.now():0;Q.proOk=0;Q.proN=0;
   $('quizKeySlot').hidden=!send;$('recvCtl').hidden=send;
   applyHide();renderHeat();nextQ();
@@ -682,7 +690,7 @@ const T={
   lang:'Language',call:'Your call sign (used in Q code practice)',hapOn:'Haptics on',hapOff:'Haptics off',reset:'Reset quiz stats',resetAgain:'Tap again to reset',cleared:'Stats cleared',
   keyLetter:'Key this letter',keyWord:'Key the word, letter by letter',keyQ:'Key this Q code',tapHeard:'Tap the letter you hear',next:'Next: ',
   settings:'Settings',helpTitle:'How the tree works',
-  help:'<p>Every letter is a path from the antenna. Read the path and you have the code.</p><p><b>Right side</b> starts with a dot. There, moving right adds a dot and moving down adds a dash.</p><p><b>Left side</b> starts with a dash. There, moving left adds a dash and moving down adds a dot.</p><p>Circles are dots, bars are dashes. Example: R is E → A → R, so · − ·.</p><p>Quiz levels follow the tree depth: level 1 is E T, level 2 adds I A N M, level 3 adds the 3-symbol letters, level 4 is everything, 0-9 drills the numbers. Numbers are 5 symbols: 1–5 start with that many dots, 6–0 start with (number − 5) dashes. Q codes are the short radio phrases hams use, like QTH and QSL.</p><p>Switch to Türkçe in Settings for Turkish words and the letters Ç Ğ Ö Ş Ü.</p><p style="font-size:12px;color:var(--muted)"><b>Open source.</b> Push-to-talk voice uses Codec2 by David Rowe and contributors, licensed under the GNU LGPL 2.1 (github.com/drowe67/codec2). Morse Tree collects no personal data.</p>'},
+  help:'<p>Every letter is a path from the antenna. Read the path and you have the code.</p><p><b>Right side</b> starts with a dot. There, moving right adds a dot and moving down adds a dash.</p><p><b>Left side</b> starts with a dash. There, moving left adds a dash and moving down adds a dot.</p><p>Circles are dots, bars are dashes. Example: R is E → A → R, so · − ·.</p><p>Quiz levels follow the tree depth: level 1 is E T, level 2 adds I A N M, level 3 adds the 3-symbol letters, level 4 is everything, 0-9 drills the numbers. Numbers are 5 symbols: 1–5 start with that many dots, 6–0 start with (number − 5) dashes. Q codes are the short radio phrases hams use, like QTH and QSL.</p><p><b>QSO</b> is a practice contact: listen to the other station, then work out and key the right reply. <b>PRO</b> hides the tree, mixes every letter and digit, uses real letter spacing and scores you per minute; in QSO it also hides the other station’s text so you copy by ear.</p><p>Switch to Türkçe in Settings for Turkish words and the letters Ç Ğ Ö Ş Ü.</p><p style="font-size:12px;color:var(--muted)"><b>Open source.</b> Push-to-talk voice uses Codec2 by David Rowe and contributors, licensed under the GNU LGPL 2.1 (github.com/drowe67/codec2). Morse Tree collects no personal data. Source code: github.com/SerhanYavuz/morse-tree</p>'},
  tr:{lHint:'Ağaçta bir harfe dokun: sesini duy, yolunun yandığını gör. Antenin sağı nokta ile, solu çizgi ile başlar. Daireler nokta, çubuklar çizgidir.',
   play:'▶ Tekrar çal',walk:'Ağacı gez',stop:'■ Durdur',hide:'Harfleri gizle',oneKey:'1 tuş',twoKeys:'· ve − tuşları',space:'Boşluk',clear:'Temizle',
   send:'Gönder',hear:'Dinle',words:'Kelime',qcodes:'Q kodları',qso:'Görüşme',qsoNew:'Yeni görüşme',qsoListen:'Dinleniyor…',qsoCopy:'Kulakla al',qsoCopied:'(kulakla alındı)',qsoYour:'Sıra sende: doğru cevabı gönder',qsoShow:'Cevabı göster',qsoKeep:'Devam…',qsoDone:'✓ Görüşme tamam! 73. Birazdan yeni bir istasyon çağıracak…',perMin:'/dk',streak:'seri',replay:'▶ Tekrar',showCode:'Kodu göster',showLetters:'Harfleri göster',skip:'Geç',
@@ -691,7 +699,7 @@ const T={
   lang:'Dil',call:'Çağrı kodun (Q kodu çalışmasında kullanılır)',hapOn:'Titreşim açık',hapOff:'Titreşim kapalı',reset:'İstatistikleri sıfırla',resetAgain:'Sıfırlamak için tekrar dokun',cleared:'Sıfırlandı',
   keyLetter:'Bu harfi gönder',keyWord:'Kelimeyi harf harf gönder',keyQ:'Bu Q kodunu gönder',tapHeard:'Duyduğun harfe dokun',next:'Sıradaki: ',
   settings:'Ayarlar',helpTitle:'Ağaç nasıl okunur',
-  help:'<p>Her harf antenden başlayan bir yoldur. Yolu oku, kodu bul.</p><p><b>Sağ taraf</b> nokta ile başlar. Orada sağa gitmek nokta, aşağı gitmek çizgi ekler.</p><p><b>Sol taraf</b> çizgi ile başlar. Orada sola gitmek çizgi, aşağı gitmek nokta ekler.</p><p>Daireler nokta, çubuklar çizgidir. Örnek: R = E → A → R, yani · − ·.</p><p>Türkçe harfler Ç Ğ Ö Ş Ü; C, Q, O, P ve U dallarına bağlıdır. İ ve I ikisi de · · dir.</p><p>Seviyeler ağacın derinliğine göre: 1 = E T, 2 = + I A N M, 3 = 3 sembollü harfler, 4 = hepsi, 0-9 = sayılar. Sayılar 5 semboldür: 1–5 o kadar nokta ile, 6–0 (sayı − 5) kadar çizgi ile başlar. Q kodları amatör telsizcilerin kısa ifadeleridir (QTH, QSL…).</p><p style="font-size:12px;color:var(--muted)"><b>Açık kaynak.</b> Bas-konuş ses özelliği David Rowe ve katkıcılarının Codec2 kütüphanesini kullanır; GNU LGPL 2.1 lisanslıdır (github.com/drowe67/codec2). Morse Tree kişisel veri toplamaz.</p>'}
+  help:'<p>Her harf antenden başlayan bir yoldur. Yolu oku, kodu bul.</p><p><b>Sağ taraf</b> nokta ile başlar. Orada sağa gitmek nokta, aşağı gitmek çizgi ekler.</p><p><b>Sol taraf</b> çizgi ile başlar. Orada sola gitmek çizgi, aşağı gitmek nokta ekler.</p><p>Daireler nokta, çubuklar çizgidir. Örnek: R = E → A → R, yani · − ·.</p><p>Türkçe harfler Ç Ğ Ö Ş Ü; C, Q, O, P ve U dallarına bağlıdır. İ ve I ikisi de · · dir.</p><p>Seviyeler ağacın derinliğine göre: 1 = E T, 2 = + I A N M, 3 = 3 sembollü harfler, 4 = hepsi, 0-9 = sayılar. Sayılar 5 semboldür: 1–5 o kadar nokta ile, 6–0 (sayı − 5) kadar çizgi ile başlar. Q kodları amatör telsizcilerin kısa ifadeleridir (QTH, QSL…).</p><p><b>Görüşme</b> bir QSO alıştırmasıdır: karşı istasyonu dinle, sonra doğru cevabı bulup gönder. <b>PRO</b> ağacı gizler, tüm harf ve rakamları karıştırır, gerçek harf aralığını kullanır ve dakikadaki puanını gösterir; Görüşme’de karşı istasyonun metnini de gizler, kulakla alırsın.</p><p style="font-size:12px;color:var(--muted)"><b>Açık kaynak.</b> Bas-konuş ses özelliği David Rowe ve katkıcılarının Codec2 kütüphanesini kullanır; GNU LGPL 2.1 lisanslıdır (github.com/drowe67/codec2). Morse Tree kişisel veri toplamaz. Kaynak kod: github.com/SerhanYavuz/morse-tree</p>'}
 };
 const t=k=>(T[S.lang]||T.en)[k];
 function applyLang(){
@@ -1095,6 +1103,8 @@ if(window.__SHOT){const sc=window.__SHOT;S.lang='en';S.tr=false;S.hide=false;app
     if(sc==='gloss'){setTab('learn');openSheet('gloss')}
     if(sc==='text'){S.text='CQ CQ DE TA2SYW K';setTab('text')}
     if(sc==='radio'){setTab('radio')}
+    if(sc==='qso'){S.pro=false;S.qType='qso';setTab('quiz');setTimeout(()=>{stopPlayback();Q.qso=qsoScript();Q.qi=3;Q.them=Q.qso[2];Q.busy=false;Q.word=Q.qso[3][1];Q.wi=6;Q.reveal=false;renderWord();
+      $('qsoThem').innerHTML='<b>📻 </b>'+esc(Q.them[1])+'<small>'+esc(Q.qso[3][2])+'</small>';$('qCode').className='code empty';$('qCode').textContent=t('qsoKeep')},600)}
   },300)}
 </script>
 </body>

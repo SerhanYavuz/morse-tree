@@ -61,6 +61,12 @@ English and Turkish, including the Turkish letters Ç Ğ Ö Ş Ü.
 
 **What's New (1.0):** First release.
 
+**What's New (1.1):**
+New in the Quiz tab:
+• QSO practice: a station calls you. Listen, then work out and key the right reply, step by step through a real contact, from CQ to 73. Every contact has a new callsign, name, city and report.
+• PRO mode: no tree hints, every letter and digit mixed, real letter spacing, and a characters-per-minute score. In QSO, PRO hides the other station's text so you copy by ear.
+Also: a link to the source code in Help.
+
 **App Review notes:**
 Morse Tree works fully offline and needs no account. Radio mode (Radio tab) sends Morse and push-to-talk voice to other devices running Morse Tree over Bluetooth, so testing it needs two devices; all other features work on one device. The microphone is used only while the push-to-talk button is held, and Bluetooth only while the radio is turned on. On Mac, Settings › Mouse keys enables left click = dot, right click = dash.
 
@@ -68,4 +74,4 @@ Morse Tree works fully offline and needs no account. Radio mode (Radio tab) send
 
 **App Privacy:** Data Not Collected.
 
-**Screenshots:** AppStore/screenshots/ (iPhone 6.9" 1320×2868, iPad 13" 2064×2752), order: learn, key, quiz, gloss, text.
+**Screenshots:** AppStore/screenshots/ (iPhone 6.9" 1320×2868, iPad 13" 2064×2752), order: learn, key, quiz, gloss, text; 1.1 adds qso (iphone-7-qso / ipad-7-qso, iphone63/ for the 6.3" slot).
